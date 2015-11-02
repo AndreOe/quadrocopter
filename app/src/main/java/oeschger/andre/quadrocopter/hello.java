@@ -1,6 +1,7 @@
 package oeschger.andre.quadrocopter;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.os.Bundle;
 import android.widget.Toast;
 
@@ -12,12 +13,23 @@ import android.widget.Toast;
  */
 
 
-public class hello extends Activity
-{
-    public void onCreate(Bundle savedInstanceState)
-    {
+public class hello extends Activity {
+
+    private static final String USB_ACCESSORY_ATTACHED = "android.hardware.usb.action.USB_ACCESSORY_ATTACHED";
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        //setContentView(R.layout.main);
-        Toast.makeText(getBaseContext(), "Hello........", Toast.LENGTH_LONG).show();
+
+        if (getIntent().getAction() != null && getIntent().getAction().equals(USB_ACCESSORY_ATTACHED)) {
+            Intent service = new Intent(this, service.class);
+            service.putExtras(getIntent());
+            startService(service);
+
+            /*Intent launch = new Intent(this, MainActivity.class);
+            launch.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            startActivity(launch);*/
+        }
+        this.finish();
     }
 }

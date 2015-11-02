@@ -1,6 +1,7 @@
 package oeschger.andre.quadrocopter;
 
 import android.app.Notification;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -19,13 +20,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-
-import android.hardware.usb.UsbAccessory;
-import android.hardware.usb.UsbManager;
-
-
-//import com.android.future.usb.UsbAccessory;
-//import com.android.future.usb.UsbManager;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 
 
@@ -36,7 +32,95 @@ public class service extends Service
 {
     private static final String TAG = "MyService";
 
-    BroadcastReceiver mUsbReceiver;
+    private String serverAddress = "192.168.2.100";
+    private int serverPort = 2500;
+    private Socket s;
+    private ObjectOutputStream oos;
+
+
+    private UsbAccessory mAccessory;
+    private ParcelFileDescriptor mFileDescriptor;
+    private FileInputStream mInputStream;
+    private FileOutputStream mOutputStream;
+    private UsbManager mUsbManager;
+
+    private PendingIntent mPermissionIntent;
+    private boolean mPermissionRequestPending;
+
+    //byte[] byteToArduino = new byte[4];
+    //byte[] byteFromArduino = new byte[2];
+
+    ConnectedThread mConnectedThread;
+
+    private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+
+            if (UsbManager.ACTION_USB_ACCESSORY_DETACHED.equals(action)) {
+                UsbAccessory accessory = (UsbAccessory)intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY);
+                if (accessory != null) {
+                    closeAccessory();
+                }
+                stopSelf();
+            }
+        }
+    };
+
+
+    private void openAccessory() {
+
+        Log.d(TAG, "openAccessory: " + mAccessory);
+        UsbManager mUsbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
+        mFileDescriptor = mUsbManager.openAccessory(mAccessory);
+
+        if (mFileDescriptor != null) {
+            FileDescriptor fd = mFileDescriptor.getFileDescriptor();
+            mInputStream = new FileInputStream(fd);
+            mOutputStream = new FileOutputStream(fd);
+
+            mConnectedThread = new ConnectedThread();
+            mConnectedThread.start();
+            Log.d(TAG, "Accessory opened");
+        }
+        else {
+            Log.d(TAG, "Accessory open failed");
+        }
+
+    }
+
+    private void closeAccessory() {
+
+        // Cancel any thread currently running a connection
+        if (mConnectedThread != null) {
+            mConnectedThread.cancel();
+            mConnectedThread = null;
+        }
+
+        // Close all streams
+        try {
+            if (mInputStream != null)
+                mInputStream.close();
+        } catch (Exception ignored) {
+        } finally {
+            mInputStream = null;
+        }
+        try {
+            if (mOutputStream != null)
+                mOutputStream.close();
+        } catch (Exception ignored) {
+        } finally {
+            mOutputStream = null;
+        }
+        try {
+            if (mFileDescriptor != null)
+                mFileDescriptor.close();
+        } catch (IOException ignored) {
+        } finally {
+            mFileDescriptor = null;
+            mAccessory = null;
+        }
+    }
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -46,204 +130,26 @@ public class service extends Service
     @Override
     public void onCreate() {
 
-        IntentFilter intentFilterDetach = new IntentFilter();
-        intentFilterDetach.addAction("android.hardware.usb.action.USB_ACCESSORY_DETACHED");
-
-        mUsbReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                String action = intent.getAction();
-
-                if (UsbManager.ACTION_USB_ACCESSORY_DETACHED.equals(action)) {
-                    UsbAccessory accessory = (UsbAccessory)intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY);
-                    if (accessory != null) {
-
-                    }
-                    stopSelf();
-                }
-            }
-        };
-
+        IntentFilter intentFilterDetach = new IntentFilter(UsbManager.ACTION_USB_ACCESSORY_DETACHED);
         registerReceiver(mUsbReceiver,intentFilterDetach);
-    }
 
-        @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        this.startForeground(1,new Notification.Builder(getBaseContext())
+        startForeground(1,new Notification.Builder(getBaseContext())
                         .setContentTitle("Quadrocopter")
                         .setContentText("The Service is runnig")
                         .build()
         );
+    }
 
-        Toast.makeText(this, "My Service Started", Toast.LENGTH_LONG).show();
+        @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+
         Log.d(TAG, "onStart");
 
+        mAccessory = (UsbAccessory) intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY);
 
-            String serverAddress = "192.168.2.100";
-            int serverPort = 2500;
-            Socket s;
-            ObjectOutputStream oos;
-            UsbManager mUSBManager;
-            FileInputStream mIS;
-            FileOutputStream mOS;
-
-            byte[] byteToArduino = new byte[1];
-            byteToArduino[0] = 12;
-            byte[] byteFromArduino = new byte[1];
-            byteFromArduino[0] =0;
-
-
-            mUSBManager = (UsbManager) getSystemService(Context.USB_SERVICE);
-            Log.d(TAG, "USBMANAGER is :" + mUSBManager);
-
-            Log.d(TAG, "ACEESORIES are :" + mUSBManager.getAccessoryList());
-
-            Log.d(TAG, "DEVICES are :" + mUSBManager.getDeviceList());
-
-            UsbAccessory acc = (UsbAccessory) intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY);
-
-
-                ParcelFileDescriptor mFD = mUSBManager.openAccessory(acc);
-                if (mFD != null) {
-                    FileDescriptor fd = mFD.getFileDescriptor();
-                    mIS = new FileInputStream(fd);  // use this to receive messages
-                    mOS = new FileOutputStream(fd); // use this to send commands
-                    try {
-                        mOS.write(byteToArduino);
-                        mOS.flush();
-                        mIS.read(byteFromArduino);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-
-
-
-
-                try {
-
-                    Log.d(TAG, "Client: start");
-
-                    s=new Socket(serverAddress,2500);
-                    Log.d(TAG, "Client: verbunden");
-
-                    oos = new ObjectOutputStream(s.getOutputStream());
-                    Log.d(TAG, "Client: stream geöffnet");
-
-                    oos.writeObject("Hallo");
-
-                    oos.writeObject("Du");
-
-                    oos.flush();
-
-                    try {
-                        Thread.sleep(5000);
-                    } catch (InterruptedException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
-
-                    //oos.writeObject("Ich bin Android");byteFromArduino
-                    oos.writeObject(byteFromArduino[0]);
-
-                    oos.flush();
-
-                    Log.d(TAG, "Client: ende");
-
-                    oos.close();
-                    Log.d(TAG, "Client: stream geschlossen");
-
-                    s.close();
-                    Log.d(TAG, "Client: socket geschlossen");
-
-                } catch (IOException e) {
-                    Log.d(TAG, "ERROR: Socket creation");
-                }
-
-
-            /*
-
-
-       new Thread(){
-
-            String serverAddress = "192.168.2.100";
-            int serverPort = 2500;
-            Socket s;
-            ObjectOutputStream oos;
-            UsbManager mUSBManager;
-            FileInputStream mIS;
-            FileOutputStream mOS;
-
-
-            @Override
-            public void run(){
-
-                mUSBManager = (UsbManager) getSystemService(Context.USB_SERVICE);
-                UsbAccessory acc = (UsbAccessory)mUSBManager.getAccessoryList()[0];
-
-                ParcelFileDescriptor mFD = mUSBManager.openAccessory(acc);
-                if (mFD != null) {
-                    FileDescriptor fd = mFD.getFileDescriptor();
-                    mIS = new FileInputStream(fd);  // use this to receive messages
-                    mOS = new FileOutputStream(fd); // use this to send commands
-                }
-
-                byte[] byteToArduino = new byte[1];
-                byteToArduino[0] = 12;
-                byte[] byteFromArduino = new byte[1];
-                byteFromArduino[0] =0;
-
-                try {
-                    mOS.write(byteToArduino);
-                    mOS.flush();
-                    mIS.read(byteFromArduino);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
-                try {
-
-                    Log.d(TAG, "Client: start");
-
-                    s=new Socket(serverAddress,2500);
-                    Log.d(TAG, "Client: verbunden");
-
-                    oos = new ObjectOutputStream(s.getOutputStream());
-                    Log.d(TAG, "Client: stream geöffnet");
-
-                    oos.writeObject("Hallo");
-
-                    oos.writeObject("Du");
-
-                    oos.flush();
-
-                    try {
-                        Thread.sleep(5000);
-                    } catch (InterruptedException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
-
-                    //oos.writeObject("Ich bin Android");byteFromArduino
-                    oos.writeObject(byteFromArduino[0]);
-
-                    oos.flush();
-
-                    Log.d(TAG, "Client: ende");
-
-                    oos.close();
-                    Log.d(TAG, "Client: stream geschlossen");
-
-                    s.close();
-                    Log.d(TAG, "Client: socket geschlossen");
-
-                } catch (IOException e) {
-                    Log.d(TAG, "ERROR: Socket creation");
-                }
-
-
-            }
-        }.start();*/
+        if (mAccessory != null) {
+            openAccessory();
+        }
 
         return START_STICKY; // We want this service to continue running until it is explicitly stopped, so return sticky.
     }
@@ -255,6 +161,76 @@ public class service extends Service
         Log.d(TAG, "onDestroy");
     }
 
+
+    private class ConnectedThread extends Thread {
+        byte[] readBuffer = new byte[2];
+        byte[] writeBuffer = new byte[4];
+
+        boolean running;
+
+        ConnectedThread() {
+            running = true;
+        }
+
+        public void run() {
+            try {
+
+                Log.d(TAG, "Client: start");
+
+                s=new Socket(serverAddress,2500);
+                Log.d(TAG, "Client: verbunden");
+
+                oos = new ObjectOutputStream(s.getOutputStream());
+                Log.d(TAG, "Client: stream geöffnet");
+
+                oos.writeObject("Hallo");
+
+                oos.writeObject("Du");
+
+                oos.flush();
+
+                //oos.writeObject("Ich bin Android");byteFromArduino
+
+                writeBuffer[0] = (byte)0xFF; // pin4
+                writeBuffer[1] = (byte)0x0F; // pin7
+                writeBuffer[2] = (byte)0x00; // pin8
+                writeBuffer[3] = (byte)0xF0; // pin12
+
+                while(running){
+
+                    Log.d(TAG, "try write");
+                    mOutputStream.write(writeBuffer);
+                    Log.d(TAG, "written");
+                    mOutputStream.flush();
+
+                    Log.d(TAG, "try read");
+                    int len = mInputStream.read(readBuffer);
+                    Log.d(TAG, "read no of bytes: " + len);
+                    Log.d(TAG, "readbuffer: " + ByteBuffer.wrap(readBuffer).order(ByteOrder.LITTLE_ENDIAN).getShort());
+
+                    oos.writeObject(ByteBuffer.wrap(readBuffer).order(ByteOrder.LITTLE_ENDIAN).getShort());
+                    oos.flush();
+                }
+
+
+                Log.d(TAG, "Client: ende");
+
+                oos.close();
+                Log.d(TAG, "Client: stream geschlossen");
+
+                s.close();
+                Log.d(TAG, "Client: socket geschlossen");
+
+            } catch (IOException e) {
+                running=false;
+                Log.d(TAG, "ERROR: IO");
+            }
+        }
+
+        public void cancel() {
+            running = false;
+        }
+    }
 
 }
 

@@ -21,13 +21,15 @@ import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 public class hello2 extends Activity {
     public static final boolean D = BuildConfig.DEBUG; // This is automatically set when building
     private static final String TAG = "ArduinoBlinkLEDActivity"; // TAG is used to debug in Android logcat console
-    private static final String ACTION_USB_PERMISSION = "com.tkjelectronics.arduino.blink.led.USB_PERMISSION";
+    private static final String ACTION_USB_PERMISSION = "oeschger.andre.quadrocopter.action.USB_PERMISSION";
 
     UsbAccessory mAccessory;
     ParcelFileDescriptor mFileDescriptor;
@@ -89,6 +91,7 @@ public class hello2 extends Activity {
         }
 
         UsbAccessory[] accessories = mUsbManager.getAccessoryList();
+        Log.d(TAG, "mAccessory is " + accessories);
         UsbAccessory accessory = (accessories == null ? null : accessories[0]);
         if (accessory != null) {
             if (mUsbManager.hasPermission(accessory))
@@ -196,7 +199,7 @@ public class hello2 extends Activity {
     }
 
     public void blinkLED(View v) {
-        byte buffer = (byte) ((((ToggleButton) v).isChecked()) ? 1 : 0); // Read button
+        byte buffer = (byte) 12; // Read button
 
         if (mOutputStream != null) {
             try {
@@ -221,10 +224,72 @@ public class hello2 extends Activity {
         }
 
         public void run() {
-            while (running) {
-                try {
-                    int bytes = mInputStream.read(buffer);
-                    if (bytes > 3) { // The message is 4 bytes long
+            //while (running) {
+
+
+
+
+            String serverAddress = "192.168.2.100";
+                    int serverPort = 2500;
+                    Socket s;
+                    ObjectOutputStream oos;
+
+                    try {
+
+                        Log.d(TAG, "Client: start");
+
+                        s=new Socket(serverAddress,2500);
+                        Log.d(TAG, "Client: verbunden");
+
+                        oos = new ObjectOutputStream(s.getOutputStream());
+                        Log.d(TAG, "Client: stream geöffnet");
+
+                        oos.writeObject("Hallo");
+
+                        oos.writeObject("Du");
+
+                        oos.flush();
+
+                        try {
+                            Thread.sleep(5000);
+                        } catch (InterruptedException e) {
+                            // TODO Auto-generated catch block
+                            e.printStackTrace();
+                        }
+
+                        //oos.writeObject("Ich bin Android");byteFromArduino
+
+                        while(running){
+                            try {
+                                Log.d(TAG, "try read");
+                                int bytes = mInputStream.read(buffer);
+                                Log.d(TAG, "readbuffer: " + ByteBuffer.wrap(buffer).order(ByteOrder.LITTLE_ENDIAN).getLong());
+
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+
+                            oos.writeObject(ByteBuffer.wrap(buffer).order(ByteOrder.LITTLE_ENDIAN).getLong());
+
+                            oos.flush();
+                        }
+
+
+                        Log.d(TAG, "Client: ende");
+
+                        oos.close();
+                        Log.d(TAG, "Client: stream geschlossen");
+
+                        s.close();
+                        Log.d(TAG, "Client: socket geschlossen");
+
+                    } catch (IOException e) {
+                        running=false;
+                        Log.d(TAG, "ERROR: Socket creation");
+                    }
+
+
+                    /*if (bytes > 3) { // The message is 4 bytes long
                         activity.runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
@@ -232,10 +297,9 @@ public class hello2 extends Activity {
                                 mTextView.setText(Long.toString(timer));
                             }
                         });
-                    }
-                } catch (Exception ignore) {
-                }
-            }
+                    }*/
+
+            //}
         }
 
         public void cancel() {
