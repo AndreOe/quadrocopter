@@ -1,7 +1,6 @@
 package oeschger.andre.quadrocopter;
 
 import android.app.Notification;
-import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -42,13 +41,7 @@ public class service extends Service
     private ParcelFileDescriptor mFileDescriptor;
     private FileInputStream mInputStream;
     private FileOutputStream mOutputStream;
-    private UsbManager mUsbManager;
 
-    private PendingIntent mPermissionIntent;
-    private boolean mPermissionRequestPending;
-
-    //byte[] byteToArduino = new byte[4];
-    //byte[] byteFromArduino = new byte[2];
 
     ConnectedThread mConnectedThread;
 
@@ -93,7 +86,7 @@ public class service extends Service
 
         // Cancel any thread currently running a connection
         if (mConnectedThread != null) {
-            mConnectedThread.cancel();
+            mConnectedThread.interrupt();
             mConnectedThread = null;
         }
 
@@ -163,14 +156,8 @@ public class service extends Service
 
 
     private class ConnectedThread extends Thread {
-        byte[] readBuffer = new byte[2];
-        byte[] writeBuffer = new byte[4];
-
-        boolean running;
-
-        ConnectedThread() {
-            running = true;
-        }
+        private byte[] readBuffer = new byte[2];
+        private byte[] writeBuffer = new byte[4];
 
         public void run() {
             try {
@@ -183,20 +170,13 @@ public class service extends Service
                 oos = new ObjectOutputStream(s.getOutputStream());
                 Log.d(TAG, "Client: stream geöffnet");
 
-                oos.writeObject("Hallo");
-
-                oos.writeObject("Du");
-
-                oos.flush();
-
-                //oos.writeObject("Ich bin Android");byteFromArduino
 
                 writeBuffer[0] = (byte)0xFF; // pin4
                 writeBuffer[1] = (byte)0x0F; // pin7
                 writeBuffer[2] = (byte)0x00; // pin8
                 writeBuffer[3] = (byte)0xF0; // pin12
 
-                while(running){
+                while(!Thread.currentThread().isInterrupted()){
 
                     Log.d(TAG, "try write");
                     mOutputStream.write(writeBuffer);
@@ -222,13 +202,9 @@ public class service extends Service
                 Log.d(TAG, "Client: socket geschlossen");
 
             } catch (IOException e) {
-                running=false;
+                Thread.currentThread().interrupt();
                 Log.d(TAG, "ERROR: IO");
             }
-        }
-
-        public void cancel() {
-            running = false;
         }
     }
 
