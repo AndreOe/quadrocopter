@@ -17,11 +17,9 @@ import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-
 
 
 /**
@@ -31,19 +29,13 @@ public class service extends Service
 {
     private static final String TAG = "MyService";
 
-    private String serverAddress = "192.168.2.100";
-    private int serverPort = 2500;
-    private Socket s;
-    private ObjectOutputStream oos;
-
-
     private UsbAccessory mAccessory;
     private ParcelFileDescriptor mFileDescriptor;
-    private FileInputStream mInputStream;
-    private FileOutputStream mOutputStream;
+    private FileInputStream fis;
+    private FileOutputStream fos;
 
-
-    ConnectedThread mConnectedThread;
+    ThreadGroup tg;
+    Thread myMainThread;
 
     private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
         @Override
@@ -53,12 +45,32 @@ public class service extends Service
             if (UsbManager.ACTION_USB_ACCESSORY_DETACHED.equals(action)) {
                 UsbAccessory accessory = (UsbAccessory)intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY);
                 if (accessory != null) {
-                    closeAccessory();
+                    stopSelf();
                 }
-                stopSelf();
             }
         }
     };
+
+    private void startWorkerThreads(){
+
+        Log.d(TAG, "Starting Threads");
+
+        tg = new ThreadGroup("My ThreadGroup");
+
+        myMainThread = new Thread(tg, new MainTask(tg,fis,fos));
+        myMainThread.start();
+        Log.d(TAG, "Threads started");
+
+
+    }
+
+    private void stopWorkerThreads(){
+        // Cancel any thread currently running a connection
+        if (tg != null) {
+            tg.interrupt();
+            tg = null;
+        }
+    }
 
 
     private void openAccessory() {
@@ -69,11 +81,8 @@ public class service extends Service
 
         if (mFileDescriptor != null) {
             FileDescriptor fd = mFileDescriptor.getFileDescriptor();
-            mInputStream = new FileInputStream(fd);
-            mOutputStream = new FileOutputStream(fd);
-
-            mConnectedThread = new ConnectedThread();
-            mConnectedThread.start();
+            fis = new FileInputStream(fd);
+            fos = new FileOutputStream(fd);
             Log.d(TAG, "Accessory opened");
         }
         else {
@@ -83,32 +92,28 @@ public class service extends Service
     }
 
     private void closeAccessory() {
-
-        // Cancel any thread currently running a connection
-        if (mConnectedThread != null) {
-            mConnectedThread.interrupt();
-            mConnectedThread = null;
-        }
-
         // Close all streams
         try {
-            if (mInputStream != null)
-                mInputStream.close();
-        } catch (Exception ignored) {
+            if (fis != null)
+                fis.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         } finally {
-            mInputStream = null;
+            fis = null;
         }
         try {
-            if (mOutputStream != null)
-                mOutputStream.close();
-        } catch (Exception ignored) {
+            if (fos != null)
+                fos.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         } finally {
-            mOutputStream = null;
+            fos = null;
         }
         try {
             if (mFileDescriptor != null)
                 mFileDescriptor.close();
-        } catch (IOException ignored) {
+        } catch (IOException e) {
+            e.printStackTrace();
         } finally {
             mFileDescriptor = null;
             mAccessory = null;
@@ -142,70 +147,21 @@ public class service extends Service
 
         if (mAccessory != null) {
             openAccessory();
+            startWorkerThreads();
         }
 
         return START_STICKY; // We want this service to continue running until it is explicitly stopped, so return sticky.
     }
 
     public void onDestroy() {
+
+        stopWorkerThreads();
+        closeAccessory();
+
         this.stopForeground(true);
         unregisterReceiver(mUsbReceiver);
         Toast.makeText(this, "My Service Stopped", Toast.LENGTH_LONG).show();
         Log.d(TAG, "onDestroy");
-    }
-
-
-    private class ConnectedThread extends Thread {
-        private byte[] readBuffer = new byte[2];
-        private byte[] writeBuffer = new byte[4];
-
-        public void run() {
-            try {
-
-                Log.d(TAG, "Client: start");
-
-                s=new Socket(serverAddress,2500);
-                Log.d(TAG, "Client: verbunden");
-
-                oos = new ObjectOutputStream(s.getOutputStream());
-                Log.d(TAG, "Client: stream geöffnet");
-
-
-                writeBuffer[0] = (byte)0xFF; // pin4
-                writeBuffer[1] = (byte)0x0F; // pin7
-                writeBuffer[2] = (byte)0x00; // pin8
-                writeBuffer[3] = (byte)0xF0; // pin12
-
-                while(!Thread.currentThread().isInterrupted()){
-
-                    Log.d(TAG, "try write");
-                    mOutputStream.write(writeBuffer);
-                    Log.d(TAG, "written");
-                    mOutputStream.flush();
-
-                    Log.d(TAG, "try read");
-                    int len = mInputStream.read(readBuffer);
-                    Log.d(TAG, "read no of bytes: " + len);
-                    Log.d(TAG, "readbuffer: " + ByteBuffer.wrap(readBuffer).order(ByteOrder.LITTLE_ENDIAN).getShort());
-
-                    oos.writeObject(ByteBuffer.wrap(readBuffer).order(ByteOrder.LITTLE_ENDIAN).getShort());
-                    oos.flush();
-                }
-
-
-                Log.d(TAG, "Client: ende");
-
-                oos.close();
-                Log.d(TAG, "Client: stream geschlossen");
-
-                s.close();
-                Log.d(TAG, "Client: socket geschlossen");
-
-            } catch (IOException e) {
-                Thread.currentThread().interrupt();
-                Log.d(TAG, "ERROR: IO");
-            }
-        }
     }
 
 }
