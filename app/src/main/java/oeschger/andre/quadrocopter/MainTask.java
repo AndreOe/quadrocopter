@@ -19,11 +19,11 @@ public class MainTask implements Runnable{
     private String serverAddress = "192.168.2.102";
     private int serverPort = 2500;
     private Socket s;
-    private ObjectOutputStream oos;
-    private ObjectInputStream ois;
+    private ObjectOutputStream outputStream;
+    private ObjectInputStream inputStream;
 
-    private FileInputStream fis;
-    private FileOutputStream fos;
+    private FileInputStream accessoryInputStream;
+    private FileOutputStream accessoryOutputStream;
 
     ValuesStore valuesStore;
 
@@ -32,8 +32,8 @@ public class MainTask implements Runnable{
 
 
     public MainTask(ThreadGroup tg, FileInputStream fis, FileOutputStream fos) {
-        this.fis = fis;
-        this.fos = fos;
+        this.accessoryInputStream = fis;
+        this.accessoryOutputStream = fos;
         this.tg = tg;
     }
 
@@ -43,21 +43,21 @@ public class MainTask implements Runnable{
 
         try {
             s = new Socket(serverAddress,serverPort);
-            ois = new ObjectInputStream(s.getInputStream());
-            oos= new ObjectOutputStream(s.getOutputStream());
+            inputStream = new ObjectInputStream(s.getInputStream());
+            outputStream = new ObjectOutputStream(s.getOutputStream());
         } catch (IOException e) {
             Log.d(TAG, "ERROR: IO");
         }
 
+        ComAndroidToPc toPc = new ComAndroidToPc(outputStream,valuesStore);
 
-
-        t1 = new Thread(tg, new ComArduinoToAndroid(fis,valuesStore));
-        t2 = new Thread(tg, new ComAndoidToArduino(fos,valuesStore));
-        t3 = new Thread(tg, new ComPcToAndroid(ois,valuesStore));
-        t4 = new Thread(tg, new ComAndroidToPc(oos,valuesStore));
+        t1 = new Thread(tg, new ComArduinoToAndroid(accessoryInputStream,valuesStore, toPc));
+        t2 = new Thread(tg, new ComAndoidToArduino(accessoryOutputStream,valuesStore));
+        t3 = new Thread(tg, new ComPcToAndroid(inputStream, valuesStore));
+        t4 = new Thread(tg, toPc);
 
         System.out.println(t1);
-        System.out.println(fis);
+        System.out.println(accessoryInputStream);
         System.out.println(valuesStore);
         System.out.println(tg);
 

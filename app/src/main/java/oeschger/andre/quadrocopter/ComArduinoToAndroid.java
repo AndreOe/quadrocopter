@@ -21,10 +21,12 @@ public class ComArduinoToAndroid implements Runnable{
     private FileInputStream inputStream;
     private ValuesStore valuesStore;
     private byte[] readBuffer = new byte[2];
+    ComAndroidToPc toPc;
 
-    public ComArduinoToAndroid(FileInputStream inputStream, ValuesStore valuesStore) {
+    public ComArduinoToAndroid(FileInputStream inputStream, ValuesStore valuesStore, ComAndroidToPc toPc) {
         this.inputStream = inputStream;
         this.valuesStore = valuesStore;
+        this.toPc = toPc;
     }
 
     @Override
@@ -33,11 +35,13 @@ public class ComArduinoToAndroid implements Runnable{
         int len = 0;
 
         while(!Thread.currentThread().isInterrupted()){
-            Log.d(TAG, "try read");
+            //Log.d(TAG, "try read");
             try {
 
                 len = inputStream.read(readBuffer);
                 valuesStore.setBattery(ByteBuffer.wrap(readBuffer).order(ByteOrder.LITTLE_ENDIAN).getShort());
+                toPc.sentToPc(new BatteryStatusMessage(valuesStore.getBattery()));
+                //TODO better add LogClass
 
             } catch (IOException e) {
                 Thread.currentThread().interrupt();
@@ -45,8 +49,8 @@ public class ComArduinoToAndroid implements Runnable{
             }
 
 
-            Log.d(TAG, "read no of bytes: " + len);
-            Log.d(TAG, "readbuffer: " + ByteBuffer.wrap(readBuffer).order(ByteOrder.LITTLE_ENDIAN).getShort());
+           // Log.d(TAG, "read no of bytes: " + len);
+            //Log.d(TAG, "readbuffer: " + ByteBuffer.wrap(readBuffer).order(ByteOrder.LITTLE_ENDIAN).getShort());
         }
 
     }

@@ -10,6 +10,7 @@ import android.hardware.usb.UsbAccessory;
 import android.hardware.usb.UsbManager;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
+import android.os.PowerManager;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -34,8 +35,11 @@ public class service extends Service
     private FileInputStream fis;
     private FileOutputStream fos;
 
-    ThreadGroup tg;
-    Thread myMainThread;
+    private PowerManager powerManager;
+    private PowerManager.WakeLock wakeLock;
+
+    private ThreadGroup tg;
+    private Thread myMainThread;
 
     private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
         @Override
@@ -52,6 +56,8 @@ public class service extends Service
     };
 
     private void startWorkerThreads(){
+
+        //TODO handle disconnect from accessory and from pc communication
 
         Log.d(TAG, "Starting Threads");
 
@@ -143,6 +149,10 @@ public class service extends Service
 
         Log.d(TAG, "onStart");
 
+        powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "QuadrocopterWakelockTag");
+        wakeLock.acquire();
+
         mAccessory = (UsbAccessory) intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY);
 
         if (mAccessory != null) {
@@ -158,6 +168,7 @@ public class service extends Service
         stopWorkerThreads();
         closeAccessory();
 
+        wakeLock.release();
         this.stopForeground(true);
         unregisterReceiver(mUsbReceiver);
         Toast.makeText(this, "My Service Stopped", Toast.LENGTH_LONG).show();

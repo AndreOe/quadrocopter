@@ -6,6 +6,8 @@ package oeschger.andre.quadrocopter;
 public interface GroundStationMessage {
 
     public final int GAMEPADMESSAGE = 1;
+    public final int CLOSECONNECTIONMESSAGE = 2;
+    public final int BATTERYSTATUSMESSAGE = 3;
 
     public int getMessageType();
 

@@ -35,8 +35,6 @@
 
         <service android:enabled="true" android:name=".service" />
 
-
-       <!-- <uses-library android:name="com.android.future.usb.accessory"></uses-library>-->
     </application>
 
 

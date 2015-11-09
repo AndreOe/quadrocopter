@@ -28,9 +28,14 @@ public class ComPcToAndroid implements Runnable{
 
                 GroundStationMessage message = (GroundStationMessage) inputStream.readObject();
 
+                //Log.d(TAG, "Received Messagetype: " +message.getMessageType());
+
                 switch (message.getMessageType()){
                     case GroundStationMessage.GAMEPADMESSAGE:
                         handleGamepadMessage((GamepadMessage)message);
+                        break;
+                    case GroundStationMessage.CLOSECONNECTIONMESSAGE:
+                        handleCloseConnectionMessage();
                         break;
                     default:
                         throw new IllegalArgumentException("GroundStationMessage type: " + message.getMessageType());
@@ -44,6 +49,13 @@ public class ComPcToAndroid implements Runnable{
             }
 
         }
+
+        try {
+            inputStream.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     private void handleGamepadMessage(GamepadMessage message){
@@ -69,6 +81,10 @@ public class ComPcToAndroid implements Runnable{
             default:
                 Log.d(TAG, "Unused Key: "+message.getButtonOrAxisName());
         }
+    }
+
+    private void handleCloseConnectionMessage(){
+        Thread.currentThread().interrupt();
     }
 
 
