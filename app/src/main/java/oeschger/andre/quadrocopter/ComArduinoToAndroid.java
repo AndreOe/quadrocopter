@@ -45,13 +45,15 @@ public class ComArduinoToAndroid implements Runnable{
 
             } catch (IOException e) {
                 Thread.currentThread().interrupt();
-                Log.d(TAG, "ERROR: IO");
+                Log.d(TAG, "ERROR ComArduinoToAndroid: IO");
             }
 
 
            // Log.d(TAG, "read no of bytes: " + len);
             //Log.d(TAG, "readbuffer: " + ByteBuffer.wrap(readBuffer).order(ByteOrder.LITTLE_ENDIAN).getShort());
         }
+
+        Log.d(TAG, "ComArduinoToAndroid ended");
 
     }
 

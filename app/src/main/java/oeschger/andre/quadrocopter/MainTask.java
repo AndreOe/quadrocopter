@@ -12,11 +12,18 @@ import java.net.Socket;
 /**
  * Created by andre on 05.11.15.
  */
+
+/* Important WLAN power optimisation has to be switched off in Android 4.2
+ * otherwise jou will experience lag when display is turned off.
+ */
+
+
+
 public class MainTask implements Runnable{
 
     private static final String TAG = "MainTask";
 
-    private String serverAddress = "192.168.2.102";
+    private String serverAddress = "192.168.2.107";
     private int serverPort = 2500;
     private Socket s;
     private ObjectOutputStream outputStream;
@@ -26,6 +33,11 @@ public class MainTask implements Runnable{
     private FileOutputStream accessoryOutputStream;
 
     ValuesStore valuesStore;
+
+    ComAndroidToPc comAndroidtoPc ;
+    ComArduinoToAndroid comArduinoToAndroid;
+    ComAndoidToArduino comAndoidToArduino;
+    ComPcToAndroid comPcToAndroid;
 
     ThreadGroup tg;
     Thread t1,t2,t3,t4;
@@ -37,10 +49,7 @@ public class MainTask implements Runnable{
         this.tg = tg;
     }
 
-    @Override
-    public void run(){
-        valuesStore = new ValuesStore();
-
+    private void initCommunicationToPC(){
         try {
             s = new Socket(serverAddress,serverPort);
             inputStream = new ObjectInputStream(s.getInputStream());
@@ -49,34 +58,69 @@ public class MainTask implements Runnable{
             Log.d(TAG, "ERROR: IO");
         }
 
-        ComAndroidToPc toPc = new ComAndroidToPc(outputStream,valuesStore);
+        comAndroidtoPc = new ComAndroidToPc(outputStream,valuesStore);
+        comPcToAndroid = new ComPcToAndroid(inputStream, valuesStore);
 
-        t1 = new Thread(tg, new ComArduinoToAndroid(accessoryInputStream,valuesStore, toPc));
-        t2 = new Thread(tg, new ComAndoidToArduino(accessoryOutputStream,valuesStore));
-        t3 = new Thread(tg, new ComPcToAndroid(inputStream, valuesStore));
-        t4 = new Thread(tg, toPc);
-
-        System.out.println(t1);
-        System.out.println(accessoryInputStream);
-        System.out.println(valuesStore);
-        System.out.println(tg);
+        t1 = new Thread(tg, comAndroidtoPc);
+        t2 = new Thread(tg, comPcToAndroid);
 
         t1.start();
         t2.start();
+    }
+
+    private void initCommunicationToArduino(){
+        comArduinoToAndroid = new ComArduinoToAndroid(accessoryInputStream,valuesStore, comAndroidtoPc);
+        comAndoidToArduino = new ComAndoidToArduino(accessoryOutputStream,valuesStore);
+
+        t3 = new Thread(tg, comArduinoToAndroid);
+        t4 = new Thread(tg, comAndoidToArduino);
+
         t3.start();
         t4.start();
+    }
 
-        //TODO close everything
-        /*if(s != null){
+    @Override
+    public void run(){
+        valuesStore = new ValuesStore();
+
+
+
+        initCommunicationToPC();
+        initCommunicationToArduino();
+
+        while(!Thread.currentThread().isInterrupted()){
 
             try {
-                s.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            } finally {
-                s = null;
+                Thread.sleep(500);//TODO is this a good time ?
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
-        }*/
+
+            if(!t1.isAlive() || !t2.isAlive()){
+                t1.interrupt();
+                t2.interrupt();
+                if(s != null){
+
+                    try {
+                        s.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } finally {
+                        s = null;
+                    }
+                }
+                initCommunicationToPC();
+            }
+
+            if(!t3.isAlive() || !t4.isAlive()){
+                t1.interrupt();
+                t2.interrupt();
+                //TODO implement acessory reconnect
+            }
+
+        }
+
+
 
     }
 

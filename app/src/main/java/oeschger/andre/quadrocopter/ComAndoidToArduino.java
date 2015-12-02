@@ -51,16 +51,20 @@ public class ComAndoidToArduino implements Runnable{
                 outputStream.flush();
             } catch (IOException e) {
                 Thread.currentThread().interrupt();
-                Log.d(TAG, "ERROR: IO");
+                Log.d(TAG, "ERROR ComAndoidToArduino: IO");
             }
             //Log.d(TAG, "written");
 
             try {
-                Thread.currentThread().sleep(10);
+                Thread.currentThread().sleep(10); //TODO is 10 ms ok ?
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
+
+
         }
+
+        Log.d(TAG, "ComAndoidToArduino ended");
 
 
     }

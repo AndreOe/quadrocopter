@@ -40,21 +40,26 @@ public class ComAndroidToPc implements Runnable{
                 outputStream.writeObject(message);
                 outputStream.flush();
             }catch (IOException e) {
-                Log.d(TAG, "ERROR: IO in run loop");
+                Log.d(TAG, "ERROR comAndroidToPc: IO in run loop");
                 e.printStackTrace();
                 Thread.currentThread().interrupt();
             }catch (InterruptedException e) {
+                Log.d(TAG, "ERROR: interrupted");
                 Thread.currentThread().interrupt();
             }
         }
 
+
         try {
+            Log.d(TAG, "send close message");
             outputStream.writeObject(new CloseConnectionMessage());
             outputStream.flush();
             outputStream.close();
         } catch (IOException e) {
-            Log.d(TAG, "ERROR: IO");
+            Log.d(TAG, "ERROR comAndroidToPc: IO");
         }
+
+        Log.d(TAG, "ComAndroidToPc ended");
 
     }
 

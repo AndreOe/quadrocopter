@@ -43,7 +43,7 @@ public class ComPcToAndroid implements Runnable{
 
             } catch (IOException e) {
                 Thread.currentThread().interrupt();
-                Log.d(TAG, "ERROR: IO");
+                Log.d(TAG, "ERROR ComPcToAndroid: IO");
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
             }
@@ -55,6 +55,8 @@ public class ComPcToAndroid implements Runnable{
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        Log.d(TAG, "ComPcToAndroid ended");
 
     }
 
