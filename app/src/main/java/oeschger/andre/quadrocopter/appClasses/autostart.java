@@ -1,4 +1,4 @@
-package oeschger.andre.quadrocopter;
+package oeschger.andre.quadrocopter.appClasses;
 
 
 import android.content.BroadcastReceiver;

@@ -1,9 +1,13 @@
-package oeschger.andre.quadrocopter;
+package oeschger.andre.quadrocopter.communications;
 
 import android.util.Log;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+
+import oeschger.andre.quadrocopter.util.ValuesStore;
+import oeschger.andre.quadrocopter.communications.messages.GamepadMessage;
+import oeschger.andre.quadrocopter.communications.messages.GroundStationMessage;
 
 /**
  * Created by andre on 03.11.15.
@@ -20,15 +24,17 @@ public class ComPcToAndroid implements Runnable{
         this.valuesStore = valuesStore;
     }
 
+
     @Override
     public void run() {
+
+        Log.d(TAG, "started");
+
         while(!Thread.currentThread().isInterrupted()){
 
             try {
 
                 GroundStationMessage message = (GroundStationMessage) inputStream.readObject();
-
-                //Log.d(TAG, "Received Messagetype: " +message.getMessageType());
 
                 switch (message.getMessageType()){
                     case GroundStationMessage.GAMEPADMESSAGE:
@@ -42,10 +48,11 @@ public class ComPcToAndroid implements Runnable{
                 }
 
             } catch (IOException e) {
-                Thread.currentThread().interrupt();
-                Log.d(TAG, "ERROR ComPcToAndroid: IO");
+                Log.d(TAG, "ERROR: IO in run loop");
+                break;
             } catch (ClassNotFoundException e) {
-                e.printStackTrace();
+                Log.d(TAG, "ERROR: class not found");
+                break;
             }
 
         }
@@ -53,15 +60,14 @@ public class ComPcToAndroid implements Runnable{
         try {
             inputStream.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            Log.d(TAG, "ERROR: close inputStream");
         }
 
-        Log.d(TAG, "ComPcToAndroid ended");
+        Log.d(TAG, "ended");
 
     }
 
     private void handleGamepadMessage(GamepadMessage message){
-        //Log.d(TAG, "Received: " + message.getButtonOrAxisName()+" is " + message.getValue());
 
         switch (message.getButtonOrAxisName()){
             case GamepadMessage.GAMEPADLEFTXAXIS:

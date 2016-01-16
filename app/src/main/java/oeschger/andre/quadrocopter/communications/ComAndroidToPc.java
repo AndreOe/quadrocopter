@@ -1,10 +1,13 @@
-package oeschger.andre.quadrocopter;
+package oeschger.andre.quadrocopter.communications;
 
 import android.util.Log;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.util.concurrent.ArrayBlockingQueue;
+
+import oeschger.andre.quadrocopter.communications.messages.CloseConnectionMessage;
+import oeschger.andre.quadrocopter.communications.messages.GroundStationMessage;
 
 /**
  * Created by andre on 03.11.15.
@@ -14,15 +17,12 @@ public class ComAndroidToPc implements Runnable{
     private static final String TAG = "ComAndroidToPc";
 
     private ObjectOutputStream outputStream;
-    private ValuesStore valuesStore;
-
     private ArrayBlockingQueue<GroundStationMessage> queue;
 
 
-    public ComAndroidToPc(ObjectOutputStream outputStream, ValuesStore valuesStore) {
+    public ComAndroidToPc(ObjectOutputStream outputStream, int queueSize) {
         this.outputStream = outputStream;
-        this.valuesStore = valuesStore;
-        queue = new ArrayBlockingQueue<GroundStationMessage>(1000);
+        queue = new ArrayBlockingQueue<GroundStationMessage>(queueSize);
     }
 
     public void sentToPc(GroundStationMessage message){
@@ -32,6 +32,7 @@ public class ComAndroidToPc implements Runnable{
     @Override
     public void run() {
 
+        Log.d(TAG, "started");
 
         while(!Thread.currentThread().isInterrupted()){
 
@@ -40,31 +41,22 @@ public class ComAndroidToPc implements Runnable{
                 outputStream.writeObject(message);
                 outputStream.flush();
             }catch (IOException e) {
-                Log.d(TAG, "ERROR comAndroidToPc: IO in run loop");
-                e.printStackTrace();
-                Thread.currentThread().interrupt();
+                Log.d(TAG, "ERROR: IO in run loop");
+                break;
             }catch (InterruptedException e) {
                 Log.d(TAG, "ERROR: interrupted");
-                Thread.currentThread().interrupt();
+                break;
             }
         }
 
-
         try {
-            Log.d(TAG, "send close message");
             outputStream.writeObject(new CloseConnectionMessage());
             outputStream.flush();
             outputStream.close();
         } catch (IOException e) {
-            Log.d(TAG, "ERROR comAndroidToPc: IO");
+            Log.d(TAG, "ERROR: IO send close message");
         }
 
-        Log.d(TAG, "ComAndroidToPc ended");
-
+        Log.d(TAG, "ended");
     }
-
-
-
-
-
 }

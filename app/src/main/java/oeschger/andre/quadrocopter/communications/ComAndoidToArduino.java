@@ -1,14 +1,11 @@
-package oeschger.andre.quadrocopter;
+package oeschger.andre.quadrocopter.communications;
 
 import android.util.Log;
 
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
-import java.io.OutputStream;
-import java.net.Socket;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
+
+import oeschger.andre.quadrocopter.util.ValuesStore;
 
 /**
  * Created by andre on 03.11.15.
@@ -20,16 +17,18 @@ public class ComAndoidToArduino implements Runnable{
     private FileOutputStream outputStream;
     private ValuesStore valuesStore;
     private byte[] writeBuffer = new byte[4];
+    private int updateTime;
 
-    public ComAndoidToArduino(FileOutputStream outputStream, ValuesStore valuesStore) {
+    public ComAndoidToArduino(FileOutputStream outputStream, ValuesStore valuesStore, int updateTime) {
         this.outputStream = outputStream;
         this.valuesStore = valuesStore;
+        this.updateTime = updateTime;
     }
 
     @Override
     public void run() {
 
-
+        Log.d(TAG, "started");
 
         while(!Thread.currentThread().isInterrupted()){
 
@@ -45,26 +44,31 @@ public class ComAndoidToArduino implements Runnable{
             writeBuffer[2] = map(valuesStore.getGamePadRightXaxis(),-1.0,1.0,0.0,255.0); // pin8
             writeBuffer[3] = map(valuesStore.getGamePadRightYaxis(),-1.0,1.0,0.0,255.0); // pin12
 
-            //Log.d(TAG, "try write");
             try {
                 outputStream.write(writeBuffer);
                 outputStream.flush();
             } catch (IOException e) {
-                Thread.currentThread().interrupt();
-                Log.d(TAG, "ERROR ComAndoidToArduino: IO");
+                Log.d(TAG, "ERROR: IO in run loop");
+                break;
             }
-            //Log.d(TAG, "written");
 
             try {
-                Thread.currentThread().sleep(10); //TODO is 10 ms ok ?
+                Thread.currentThread().sleep(updateTime); //TODO is 10 ms ok ?
             } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+                Log.d(TAG, "ERROR: interrupted");
+                break;
             }
 
 
         }
 
-        Log.d(TAG, "ComAndoidToArduino ended");
+        try {
+            outputStream.close();
+        } catch (IOException e) {
+            Log.d(TAG, "ERROR: close outputStream");
+        }
+
+        Log.d(TAG, "ended");
 
 
     }

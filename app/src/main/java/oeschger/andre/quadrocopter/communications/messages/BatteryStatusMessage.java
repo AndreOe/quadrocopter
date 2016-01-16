@@ -1,4 +1,4 @@
-package oeschger.andre.quadrocopter;
+package oeschger.andre.quadrocopter.communications.messages;
 
 import java.io.Serializable;
 

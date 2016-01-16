@@ -1,4 +1,4 @@
-package oeschger.andre.quadrocopter;
+package oeschger.andre.quadrocopter.communications.messages;
 
 import java.io.Serializable;
 
@@ -29,6 +29,6 @@ public class GamepadMessage implements GroundStationMessage, Serializable {
 
     @Override
     public int getMessageType() {
-        return GroundStationMessage.GAMEPADMESSAGE;
+        return GAMEPADMESSAGE;
     }
 }

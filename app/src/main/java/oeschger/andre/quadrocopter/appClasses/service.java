@@ -1,4 +1,4 @@
-package oeschger.andre.quadrocopter;
+package oeschger.andre.quadrocopter.appClasses;
 
 import android.app.Notification;
 import android.app.Service;
@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.hardware.SensorManager;
 import android.hardware.usb.UsbAccessory;
 import android.hardware.usb.UsbManager;
 import android.os.IBinder;
@@ -21,6 +22,8 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+
+import oeschger.andre.quadrocopter.MainTask;
 
 
 /**
@@ -38,8 +41,9 @@ public class service extends Service
     private PowerManager powerManager;
     private PowerManager.WakeLock wakeLock;
 
-    private ThreadGroup tg;
-    private Thread myMainThread;
+    private SensorManager sensorManager;
+
+    private MainTask myMainTask;
 
     private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
         @Override
@@ -57,25 +61,20 @@ public class service extends Service
 
     private void startWorkerThreads(){
 
-        //TODO handle disconnect from accessory and from pc communication
+        //TODO handle disconnect from accestion
 
         Log.d(TAG, "Starting Threads");
 
-        tg = new ThreadGroup("My ThreadGroup");
 
-        myMainThread = new Thread(tg, new MainTask(tg,fis,fos));
-        myMainThread.start();
-        Log.d(TAG, "Threads started");
+        myMainTask = new MainTask(fis,fos,sensorManager);
+        Log.d(TAG, "Threadstarted");
 
 
     }
 
     private void stopWorkerThreads(){
         // Cancel any thread currently running a connection
-        if (tg != null) {
-            tg.interrupt();
-            tg = null;
-        }
+        myMainTask.shutdownNow();
     }
 
 
@@ -153,6 +152,8 @@ public class service extends Service
         wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "QuadrocopterWakelockTag");
         wakeLock.acquire();
 
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+
         mAccessory = (UsbAccessory) intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY);
 
         if (mAccessory != null) {
@@ -163,6 +164,7 @@ public class service extends Service
         return START_STICKY; // We want this service to continue running until it is explicitly stopped, so return sticky.
     }
 
+    @Override
     public void onDestroy() {
 
         stopWorkerThreads();
@@ -173,6 +175,7 @@ public class service extends Service
         unregisterReceiver(mUsbReceiver);
         Toast.makeText(this, "My Service Stopped", Toast.LENGTH_LONG).show();
         Log.d(TAG, "onDestroy");
+        super.onDestroy();
     }
 
 }

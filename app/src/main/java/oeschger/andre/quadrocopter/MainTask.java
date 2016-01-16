@@ -1,5 +1,7 @@
 package oeschger.andre.quadrocopter;
 
+import android.hardware.Sensor;
+import android.hardware.SensorManager;
 import android.util.Log;
 
 import java.io.FileInputStream;
@@ -8,23 +10,45 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
+import oeschger.andre.quadrocopter.communications.ComAndoidToArduino;
+import oeschger.andre.quadrocopter.communications.ComAndroidToPc;
+import oeschger.andre.quadrocopter.communications.ComArduinoToAndroid;
+import oeschger.andre.quadrocopter.communications.ComPcToAndroid;
+import oeschger.andre.quadrocopter.util.SensorEventReceiver;
+import oeschger.andre.quadrocopter.util.ValuesStore;
 
 /**
  * Created by andre on 05.11.15.
  */
 
-/* Important WLAN power optimisation has to be switched off in Android 4.2
+/* Maybe important WLAN power optimisation has to be switched off in Android 4.2
  * otherwise jou will experience lag when display is turned off.
+ * Switch Android processor scheduler to performance.
  */
 
 
 
 public class MainTask implements Runnable{
 
+    // Constants
+
+    private final String serverAddress = "192.168.2.107";
+    private final int serverPort = 2500;
+
+    private final int TO_PC_MESSAGE_QUEUE_SIZE = 1000;
+
+    private final int UPDATE_TIME_TO_ARDUINO = 10; //Milliseconds
+    private final int UPDATE_TIME_NAVIGATION_SOLVER = 10; //Milliseconds
+
+    private final int NUMBEROFTHREADS = 5;
+
     private static final String TAG = "MainTask";
 
-    private String serverAddress = "192.168.2.107";
-    private int serverPort = 2500;
+    //-----------------------------------------------------------
     private Socket s;
     private ObjectOutputStream outputStream;
     private ObjectInputStream inputStream;
@@ -32,21 +56,34 @@ public class MainTask implements Runnable{
     private FileInputStream accessoryInputStream;
     private FileOutputStream accessoryOutputStream;
 
-    ValuesStore valuesStore;
+    private ValuesStore valuesStore;
 
-    ComAndroidToPc comAndroidtoPc ;
-    ComArduinoToAndroid comArduinoToAndroid;
-    ComAndoidToArduino comAndoidToArduino;
-    ComPcToAndroid comPcToAndroid;
+    private ScheduledThreadPoolExecutor executor;
 
-    ThreadGroup tg;
-    Thread t1,t2,t3,t4;
+    private Future<?> comAndroidToPcFuture;
+    private Future<?> comPcToAndroidFuture;
+    private Future<?> comArduinoToAndroidFuture;
+    private Future<?> comAndoidToArduinoFuture;
+    private Future<?> sensorEventReceiverFuture;
 
+    private SensorManager sensorManager;
+    private Sensor sensorAccelerometer;
+    private Sensor sensorMagnetometer;
+    private Sensor sensorGyroscope;
+    private Sensor sensorAtmosphericPressure;
 
-    public MainTask(ThreadGroup tg, FileInputStream fis, FileOutputStream fos) {
+    private SensorEventReceiver sensorEventReceiver;
+
+    public MainTask(FileInputStream fis, FileOutputStream fos, SensorManager sensorManager) {
         this.accessoryInputStream = fis;
         this.accessoryOutputStream = fos;
-        this.tg = tg;
+        this.sensorManager = sensorManager;
+        executor = new ScheduledThreadPoolExecutor(NUMBEROFTHREADS);
+        executor.execute(this);
+    }
+
+    public void shutdownNow(){
+        executor.shutdownNow();
     }
 
     private void initCommunicationToPC(){
@@ -58,26 +95,33 @@ public class MainTask implements Runnable{
             Log.d(TAG, "ERROR: IO");
         }
 
-        comAndroidtoPc = new ComAndroidToPc(outputStream,valuesStore);
-        comPcToAndroid = new ComPcToAndroid(inputStream, valuesStore);
+        comAndroidToPcFuture = executor.submit(new ComAndroidToPc(outputStream,TO_PC_MESSAGE_QUEUE_SIZE));
+        comPcToAndroidFuture = executor.submit(new ComPcToAndroid(inputStream, valuesStore));
 
-        t1 = new Thread(tg, comAndroidtoPc);
-        t2 = new Thread(tg, comPcToAndroid);
-
-        t1.start();
-        t2.start();
     }
 
     private void initCommunicationToArduino(){
-        comArduinoToAndroid = new ComArduinoToAndroid(accessoryInputStream,valuesStore, comAndroidtoPc);
-        comAndoidToArduino = new ComAndoidToArduino(accessoryOutputStream,valuesStore);
 
-        t3 = new Thread(tg, comArduinoToAndroid);
-        t4 = new Thread(tg, comAndoidToArduino);
-
-        t3.start();
-        t4.start();
+        comArduinoToAndroidFuture = executor.submit(new ComArduinoToAndroid(accessoryInputStream, valuesStore));
+        comAndoidToArduinoFuture = executor.submit(new ComAndoidToArduino(accessoryOutputStream,valuesStore, UPDATE_TIME_TO_ARDUINO));
     }
+
+    private void initSensorEventReceiver(){
+        sensorEventReceiver = new SensorEventReceiver("MySensorReceiverThread",valuesStore);
+        sensorEventReceiverFuture = executor.submit(sensorEventReceiver);
+
+        sensorAccelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        sensorMagnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+        sensorGyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        sensorAtmosphericPressure = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE);
+
+        sensorManager.registerListener(sensorEventReceiver,sensorAccelerometer,SensorManager.SENSOR_DELAY_FASTEST,sensorEventReceiver.getSensorEventHandler());
+        sensorManager.registerListener(sensorEventReceiver,sensorMagnetometer,SensorManager.SENSOR_DELAY_FASTEST,sensorEventReceiver.getSensorEventHandler());
+        sensorManager.registerListener(sensorEventReceiver,sensorGyroscope,SensorManager.SENSOR_DELAY_FASTEST,sensorEventReceiver.getSensorEventHandler());
+        sensorManager.registerListener(sensorEventReceiver,sensorAtmosphericPressure,SensorManager.SENSOR_DELAY_FASTEST,sensorEventReceiver.getSensorEventHandler());
+    }
+
+
 
     @Override
     public void run(){
@@ -91,14 +135,17 @@ public class MainTask implements Runnable{
         while(!Thread.currentThread().isInterrupted()){
 
             try {
-                Thread.sleep(500);//TODO is this a good time ?
+                Thread.sleep(5000);//TODO is this a good time ?
             } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+                Log.d(TAG, "ERROR: interrupted");
+                break;
             }
 
-            if(!t1.isAlive() || !t2.isAlive()){
-                t1.interrupt();
-                t2.interrupt();
+            if(comAndroidToPcFuture.isDone() || comPcToAndroidFuture.isDone()){
+
+                comAndroidToPcFuture.cancel(true);
+                comPcToAndroidFuture.cancel(true);
+
                 if(s != null){
 
                     try {
@@ -112,16 +159,18 @@ public class MainTask implements Runnable{
                 initCommunicationToPC();
             }
 
-            if(!t3.isAlive() || !t4.isAlive()){
-                t1.interrupt();
-                t2.interrupt();
+            if(comArduinoToAndroidFuture.isDone() || comAndoidToArduinoFuture.isDone()){
+                comArduinoToAndroidFuture.cancel(true);
+                comAndoidToArduinoFuture.cancel(true);
+                //TODO put accessory connect stuff here
                 //TODO implement acessory reconnect
             }
 
         }
 
-
-
+        sensorManager.unregisterListener(sensorEventReceiver);
+        sensorEventReceiver.getLooper().quit();
+        Log.d(TAG, "sensorEventReceiver unregistered and quit Looper");
     }
 
 }

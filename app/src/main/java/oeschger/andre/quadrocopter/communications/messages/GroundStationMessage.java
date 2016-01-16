@@ -1,4 +1,4 @@
-package oeschger.andre.quadrocopter;
+package oeschger.andre.quadrocopter.communications.messages;
 
 /**
  * Created by andre on 04.11.15.

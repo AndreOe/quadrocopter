@@ -1,9 +1,8 @@
-package oeschger.andre.quadrocopter;
+package oeschger.andre.quadrocopter.appClasses;
 
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
-import android.widget.Toast;
 
 /**
  * Created by andre on 28.10.15.

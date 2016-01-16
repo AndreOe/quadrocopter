@@ -1,15 +1,13 @@
-package oeschger.andre.quadrocopter;
+package oeschger.andre.quadrocopter.communications;
 
 import android.util.Log;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+
+import oeschger.andre.quadrocopter.util.ValuesStore;
 
 /**
  * Created by andre on 03.11.15.
@@ -21,41 +19,41 @@ public class ComArduinoToAndroid implements Runnable{
     private FileInputStream inputStream;
     private ValuesStore valuesStore;
     private byte[] readBuffer = new byte[2];
-    ComAndroidToPc toPc;
 
-    public ComArduinoToAndroid(FileInputStream inputStream, ValuesStore valuesStore, ComAndroidToPc toPc) {
+    public ComArduinoToAndroid(FileInputStream inputStream, ValuesStore valuesStore) {
         this.inputStream = inputStream;
         this.valuesStore = valuesStore;
-        this.toPc = toPc;
     }
 
     @Override
     public void run() {
 
+        Log.d(TAG, "started");
+
         int len = 0;
 
         while(!Thread.currentThread().isInterrupted()){
-            //Log.d(TAG, "try read");
+
             try {
 
                 len = inputStream.read(readBuffer);
                 valuesStore.setBattery(ByteBuffer.wrap(readBuffer).order(ByteOrder.LITTLE_ENDIAN).getShort());
-                toPc.sentToPc(new BatteryStatusMessage(valuesStore.getBattery()));
+                //toPc.sentToPc(new BatteryStatusMessage(valuesStore.getBattery()));
                 //TODO better add LogClass
 
             } catch (IOException e) {
-                Thread.currentThread().interrupt();
-                Log.d(TAG, "ERROR ComArduinoToAndroid: IO");
+                Log.d(TAG, "ERROR: IO");
+                break;
             }
-
-
-           // Log.d(TAG, "read no of bytes: " + len);
-            //Log.d(TAG, "readbuffer: " + ByteBuffer.wrap(readBuffer).order(ByteOrder.LITTLE_ENDIAN).getShort());
         }
 
-        Log.d(TAG, "ComArduinoToAndroid ended");
+        try {
+            inputStream.close();
+        } catch (IOException e) {
+            Log.d(TAG, "ERROR: IO close inputStream");
+        }
+
+        Log.d(TAG, "ended");
 
     }
-
-
 }

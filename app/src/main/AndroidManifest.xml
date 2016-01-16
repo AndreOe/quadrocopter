@@ -20,7 +20,7 @@
         </receiver>-->
 
         <activity
-            android:name=".hello">
+            android:name=".appClasses.hello">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -33,7 +33,7 @@
                 android:resource="@xml/accessory_filter" />
         </activity>
 
-        <service android:enabled="true" android:name=".service" />
+        <service android:enabled="true" android:name=".appClasses.service" />
 
     </application>
 
