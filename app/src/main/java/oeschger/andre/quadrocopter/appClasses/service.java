@@ -34,9 +34,8 @@ public class service extends Service
     private static final String TAG = "MyService";
 
     private UsbAccessory mAccessory;
-    private ParcelFileDescriptor mFileDescriptor;
-    private FileInputStream fis;
-    private FileOutputStream fos;
+    private ParcelFileDescriptor.AutoCloseInputStream fis;
+    private ParcelFileDescriptor.AutoCloseOutputStream fos;
 
     private PowerManager powerManager;
     private PowerManager.WakeLock wakeLock;
@@ -64,8 +63,6 @@ public class service extends Service
         //TODO handle disconnect from accestion
 
         Log.d(TAG, "Starting Threads");
-
-
         myMainTask = new MainTask(fis,fos,sensorManager);
         Log.d(TAG, "Threadstarted");
 
@@ -74,55 +71,44 @@ public class service extends Service
 
     private void stopWorkerThreads(){
         // Cancel any thread currently running a connection
-        myMainTask.shutdownNow();
+        if(myMainTask!=null){
+            myMainTask.shutdownNow();
+        }
     }
 
 
-    private void openAccessory() {
+    private boolean openAccessory() {
 
-        Log.d(TAG, "openAccessory: " + mAccessory);
-        UsbManager mUsbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
-        mFileDescriptor = mUsbManager.openAccessory(mAccessory);
+        boolean connected = false;
 
-        if (mFileDescriptor != null) {
-            FileDescriptor fd = mFileDescriptor.getFileDescriptor();
-            fis = new FileInputStream(fd);
-            fos = new FileOutputStream(fd);
-            Log.d(TAG, "Accessory opened");
-        }
-        else {
-            Log.d(TAG, "Accessory open failed");
+        Log.d(TAG, "openAccessory");
+
+        UsbManager manager = (UsbManager) getSystemService(Context.USB_SERVICE);
+        UsbAccessory[] accessoryList = manager.getAccessoryList();
+
+        Log.d(TAG,"accessoryList created");
+
+        if (accessoryList != null){
+            Log.d(TAG,"accessoryList is");
+            Log.d(TAG,accessoryList.toString());
+            Log.d(TAG,"printing accessoryList");
+            for(int i = 0;i<accessoryList.length;i++){
+                Log.d(TAG,accessoryList[i].toString());
+            }
+
+            Log.d(TAG,"accessories printed");
+        } else{
+            Log.d(TAG,"accessoryList is null");
         }
 
-    }
-
-    private void closeAccessory() {
-        // Close all streams
-        try {
-            if (fis != null)
-                fis.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            fis = null;
+        if(accessoryList != null && accessoryList[0] != null) {
+            Log.d(TAG,"They are not null");
+            ParcelFileDescriptor pfd = manager.openAccessory(accessoryList[0]);
+            fos = new ParcelFileDescriptor.AutoCloseOutputStream(pfd);
+            fis = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
+            connected = true;
         }
-        try {
-            if (fos != null)
-                fos.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            fos = null;
-        }
-        try {
-            if (mFileDescriptor != null)
-                mFileDescriptor.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            mFileDescriptor = null;
-            mAccessory = null;
-        }
+        return connected;
     }
 
     @Override
@@ -154,21 +140,22 @@ public class service extends Service
 
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
 
-        mAccessory = (UsbAccessory) intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY);
+        boolean success = openAccessory();
 
-        if (mAccessory != null) {
-            openAccessory();
+        if(success){
             startWorkerThreads();
+            return START_STICKY; // We want this service to continue running until it is explicitly stopped, so return sticky.
+        }else{
+            stopSelf();
+            return START_NOT_STICKY;
         }
 
-        return START_STICKY; // We want this service to continue running until it is explicitly stopped, so return sticky.
     }
 
     @Override
     public void onDestroy() {
 
         stopWorkerThreads();
-        closeAccessory();
 
         wakeLock.release();
         this.stopForeground(true);

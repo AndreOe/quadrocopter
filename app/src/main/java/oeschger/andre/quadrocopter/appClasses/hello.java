@@ -20,15 +20,9 @@ public class hello extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        if (getIntent().getAction() != null && getIntent().getAction().equals(USB_ACCESSORY_ATTACHED)) {
-            Intent service = new Intent(this, service.class);
-            service.putExtras(getIntent());
-            startService(service);
+        Intent service = new Intent(this, service.class);
+        startService(service);
 
-            /*Intent launch = new Intent(this, MainActivity.class);
-            launch.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            startActivity(launch);*/
-        }
         this.finish();
     }
 }

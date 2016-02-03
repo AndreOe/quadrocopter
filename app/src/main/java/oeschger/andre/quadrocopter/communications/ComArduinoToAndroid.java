@@ -1,8 +1,8 @@
 package oeschger.andre.quadrocopter.communications;
 
+import android.os.ParcelFileDescriptor;
 import android.util.Log;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -16,11 +16,11 @@ public class ComArduinoToAndroid implements Runnable{
 
     private static final String TAG = "ComArduinoToAndroid";
 
-    private FileInputStream inputStream;
+    private ParcelFileDescriptor.AutoCloseInputStream inputStream;
     private ValuesStore valuesStore;
     private byte[] readBuffer = new byte[2];
 
-    public ComArduinoToAndroid(FileInputStream inputStream, ValuesStore valuesStore) {
+    public ComArduinoToAndroid(ParcelFileDescriptor.AutoCloseInputStream inputStream, ValuesStore valuesStore) {
         this.inputStream = inputStream;
         this.valuesStore = valuesStore;
     }

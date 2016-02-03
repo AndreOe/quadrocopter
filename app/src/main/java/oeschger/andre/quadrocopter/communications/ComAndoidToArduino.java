@@ -1,8 +1,8 @@
 package oeschger.andre.quadrocopter.communications;
 
+import android.os.ParcelFileDescriptor;
 import android.util.Log;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
 
 import oeschger.andre.quadrocopter.util.ValuesStore;
@@ -14,12 +14,12 @@ public class ComAndoidToArduino implements Runnable{
 
     private static final String TAG = "ComAndoidToArduino";
 
-    private FileOutputStream outputStream;
+    private ParcelFileDescriptor.AutoCloseOutputStream outputStream;
     private ValuesStore valuesStore;
     private byte[] writeBuffer = new byte[4];
     private int updateTime;
 
-    public ComAndoidToArduino(FileOutputStream outputStream, ValuesStore valuesStore, int updateTime) {
+    public ComAndoidToArduino(ParcelFileDescriptor.AutoCloseOutputStream outputStream, ValuesStore valuesStore, int updateTime) {
         this.outputStream = outputStream;
         this.valuesStore = valuesStore;
         this.updateTime = updateTime;

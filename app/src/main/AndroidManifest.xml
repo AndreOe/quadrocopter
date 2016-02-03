@@ -33,7 +33,7 @@
                 android:resource="@xml/accessory_filter" />
         </activity>
 
-        <service android:enabled="true" android:name=".appClasses.service" />
+        <service android:enabled="true" android:exported="true" android:name=".appClasses.service" />
 
     </application>
 

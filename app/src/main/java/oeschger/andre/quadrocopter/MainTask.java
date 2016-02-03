@@ -3,6 +3,7 @@ package oeschger.andre.quadrocopter;
 import android.hardware.Sensor;
 import android.hardware.SensorManager;
 import android.os.Handler;
+import android.os.ParcelFileDescriptor;
 import android.util.Log;
 
 import java.io.FileInputStream;
@@ -44,7 +45,7 @@ public class MainTask implements Runnable{
 
     private final int UPDATE_TIME_TO_ARDUINO = 10; //Milliseconds
     private final int UPDATE_TIME_NAVIGATION_SOLVER = 10; //Milliseconds
-    private final int UPDATE_TIME_LOG_TO_PC = 10; //Milliseconds
+    private final int UPDATE_TIME_LOG_TO_PC = 1000; //Milliseconds
 
     private final double MILLISECONDS_TO_SECONDS = 1.0/1000.0;
 
@@ -59,8 +60,8 @@ public class MainTask implements Runnable{
     private ObjectOutputStream outputStream;
     private ObjectInputStream inputStream;
 
-    private FileInputStream accessoryInputStream;
-    private FileOutputStream accessoryOutputStream;
+    private ParcelFileDescriptor.AutoCloseInputStream accessoryInputStream;
+    private ParcelFileDescriptor.AutoCloseOutputStream accessoryOutputStream;
 
     private ValuesStore valuesStore;
 
@@ -89,7 +90,7 @@ public class MainTask implements Runnable{
 
     private LogToPc logToPc;
 
-    public MainTask(FileInputStream fis, FileOutputStream fos, SensorManager sensorManager) {
+    public MainTask(ParcelFileDescriptor.AutoCloseInputStream fis, ParcelFileDescriptor.AutoCloseOutputStream fos, SensorManager sensorManager) {
         this.accessoryInputStream = fis;
         this.accessoryOutputStream = fos;
         this.sensorManager = sensorManager;
@@ -181,6 +182,7 @@ public class MainTask implements Runnable{
 
                 comAndroidToPcFuture.cancel(true);
                 comPcToAndroidFuture.cancel(true);
+                logToPcFuture.cancel(true);
 
                 if(s != null){
 
