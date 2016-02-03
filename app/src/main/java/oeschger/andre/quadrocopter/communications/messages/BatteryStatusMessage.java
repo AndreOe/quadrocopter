@@ -5,7 +5,7 @@ import java.io.Serializable;
 /**
  * Created by andre on 09.11.15.
  */
-public class BatteryStatusMessage implements GroundStationMessage, Serializable {
+public class BatteryStatusMessage implements GroundStationMessage{
 
     private short value;
 
@@ -13,7 +13,7 @@ public class BatteryStatusMessage implements GroundStationMessage, Serializable 
         this.value = value;
     }
 
-    public float getValue(){
+    public short getValue(){
         return value;
     }
 

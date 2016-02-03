@@ -5,7 +5,7 @@ import java.io.Serializable;
 /**
  * Created by andre on 04.11.15.
  */
-public class GamepadMessage implements GroundStationMessage, Serializable {
+public class GamepadMessage implements GroundStationMessage{
 
     public static final String GAMEPADLEFTXAXIS = "x";
     public static final String GAMEPADLEFTYAXIS = "y";

@@ -4,15 +4,18 @@ import android.content.Context;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Looper;
 import android.util.Log;
 
 /**
  * Created by andre on 16.01.16.
  */
-public class SensorEventReceiver extends HandlerThread implements SensorEventListener{
+//public class SensorEventReceiver extends HandlerThread implements SensorEventListener{
+    public class SensorEventReceiver implements SensorEventListener{
+
+    //Uses normal Android coordinate system
 
     private static final String TAG = "SensorEventReceiver";
 
@@ -20,19 +23,22 @@ public class SensorEventReceiver extends HandlerThread implements SensorEventLis
     private ValuesStore valuesStore;
 
     public SensorEventReceiver(String name, ValuesStore valuesStore){
-        super(name);
+        //super(name);
+        Log.d(TAG, "after super");
         this.valuesStore = valuesStore;
-        sensorEventHandler = new Handler(getLooper());
+        //this.start();
+        //sensorEventHandler = new Handler(getLooper());
+       // Log.d(TAG, "got looper");
     }
 
-    public Handler getSensorEventHandler(){
+    /*public Handler getSensorEventHandler(){
         return sensorEventHandler;
-    }
+    }*/
 
     @Override
     public void onSensorChanged(SensorEvent event) {
 
-        Log.d(TAG, "onSensorChanged runs in: " + Thread.currentThread().getName());
+        //Log.d(TAG, "onSensorChanged runs in: " + Thread.currentThread().getName());
 
         switch(event.sensor.getType()){
             case Sensor.TYPE_GYROSCOPE :        valuesStore.setSensorGyroscopeX(event.values[0]);
@@ -61,4 +67,10 @@ public class SensorEventReceiver extends HandlerThread implements SensorEventLis
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
 
     }
+
+    /*@Override
+    public void run() {
+        sensorEventHandler = new Handler(getLooper());
+    }*/
+
 }

@@ -2,6 +2,7 @@ package oeschger.andre.quadrocopter;
 
 import android.hardware.Sensor;
 import android.hardware.SensorManager;
+import android.os.Handler;
 import android.util.Log;
 
 import java.io.FileInputStream;
@@ -36,15 +37,20 @@ public class MainTask implements Runnable{
 
     // Constants
 
-    private final String serverAddress = "192.168.2.107";
+    private final String serverAddress = "192.168.0.7";
     private final int serverPort = 2500;
 
     private final int TO_PC_MESSAGE_QUEUE_SIZE = 1000;
 
     private final int UPDATE_TIME_TO_ARDUINO = 10; //Milliseconds
     private final int UPDATE_TIME_NAVIGATION_SOLVER = 10; //Milliseconds
+    private final int UPDATE_TIME_LOG_TO_PC = 10; //Milliseconds
 
-    private final int NUMBEROFTHREADS = 5;
+    private final double MILLISECONDS_TO_SECONDS = 1.0/1000.0;
+
+    private final int NUMBEROFTHREADS = 7;
+
+    private final float ORIENTATION_FILTER_COEFFICIENT = 0.98f;
 
     private static final String TAG = "MainTask";
 
@@ -60,11 +66,15 @@ public class MainTask implements Runnable{
 
     private ScheduledThreadPoolExecutor executor;
 
+    private ComAndroidToPc comAndroidToPc;
+
     private Future<?> comAndroidToPcFuture;
     private Future<?> comPcToAndroidFuture;
     private Future<?> comArduinoToAndroidFuture;
     private Future<?> comAndoidToArduinoFuture;
     private Future<?> sensorEventReceiverFuture;
+    private Future<?> navigationSolverFuture;
+    private Future<?> logToPcFuture;
 
     private SensorManager sensorManager;
     private Sensor sensorAccelerometer;
@@ -73,6 +83,11 @@ public class MainTask implements Runnable{
     private Sensor sensorAtmosphericPressure;
 
     private SensorEventReceiver sensorEventReceiver;
+    //private Handler sensorEventHandler;
+
+    private NavigationSolver navigationSolver;
+
+    private LogToPc logToPc;
 
     public MainTask(FileInputStream fis, FileOutputStream fos, SensorManager sensorManager) {
         this.accessoryInputStream = fis;
@@ -86,7 +101,7 @@ public class MainTask implements Runnable{
         executor.shutdownNow();
     }
 
-    private void initCommunicationToPC(){
+    private void initCommunicationWithPC(){
         try {
             s = new Socket(serverAddress,serverPort);
             inputStream = new ObjectInputStream(s.getInputStream());
@@ -95,30 +110,48 @@ public class MainTask implements Runnable{
             Log.d(TAG, "ERROR: IO");
         }
 
-        comAndroidToPcFuture = executor.submit(new ComAndroidToPc(outputStream,TO_PC_MESSAGE_QUEUE_SIZE));
+        comAndroidToPc = new ComAndroidToPc(outputStream,TO_PC_MESSAGE_QUEUE_SIZE);
+
+        comAndroidToPcFuture = executor.submit(comAndroidToPc);
         comPcToAndroidFuture = executor.submit(new ComPcToAndroid(inputStream, valuesStore));
 
     }
 
-    private void initCommunicationToArduino(){
+    private void initCommunicationWithArduino(){
 
         comArduinoToAndroidFuture = executor.submit(new ComArduinoToAndroid(accessoryInputStream, valuesStore));
         comAndoidToArduinoFuture = executor.submit(new ComAndoidToArduino(accessoryOutputStream,valuesStore, UPDATE_TIME_TO_ARDUINO));
     }
 
     private void initSensorEventReceiver(){
+        Log.d(TAG, "initSensorEventReceiver");
         sensorEventReceiver = new SensorEventReceiver("MySensorReceiverThread",valuesStore);
-        sensorEventReceiverFuture = executor.submit(sensorEventReceiver);
+        Log.d(TAG, "sensorEventReceiver created");
+        //sensorEventReceiverFuture = executor.submit(sensorEventReceiver);
+        Log.d(TAG, "sensorEventReceiver submitted");
 
         sensorAccelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         sensorMagnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
         sensorGyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
         sensorAtmosphericPressure = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE);
 
-        sensorManager.registerListener(sensorEventReceiver,sensorAccelerometer,SensorManager.SENSOR_DELAY_FASTEST,sensorEventReceiver.getSensorEventHandler());
-        sensorManager.registerListener(sensorEventReceiver,sensorMagnetometer,SensorManager.SENSOR_DELAY_FASTEST,sensorEventReceiver.getSensorEventHandler());
-        sensorManager.registerListener(sensorEventReceiver,sensorGyroscope,SensorManager.SENSOR_DELAY_FASTEST,sensorEventReceiver.getSensorEventHandler());
-        sensorManager.registerListener(sensorEventReceiver,sensorAtmosphericPressure,SensorManager.SENSOR_DELAY_FASTEST,sensorEventReceiver.getSensorEventHandler());
+        Log.d(TAG, "sensors created");
+        sensorManager.registerListener(sensorEventReceiver, sensorAccelerometer, SensorManager.SENSOR_DELAY_FASTEST);
+        sensorManager.registerListener(sensorEventReceiver,sensorMagnetometer,SensorManager.SENSOR_DELAY_FASTEST);
+        sensorManager.registerListener(sensorEventReceiver,sensorGyroscope,SensorManager.SENSOR_DELAY_FASTEST);
+        sensorManager.registerListener(sensorEventReceiver,sensorAtmosphericPressure,SensorManager.SENSOR_DELAY_FASTEST);
+        Log.d(TAG, "listeners registred");
+    }
+
+    private void initNavigationSolver(){
+        navigationSolver = new NavigationSolver(valuesStore,ORIENTATION_FILTER_COEFFICIENT,(float)(UPDATE_TIME_NAVIGATION_SOLVER*MILLISECONDS_TO_SECONDS));
+        navigationSolverFuture = executor.scheduleAtFixedRate(navigationSolver,10000,UPDATE_TIME_NAVIGATION_SOLVER,TimeUnit.MILLISECONDS);
+        //navigationSolverFuture = executor.scheduleAtFixedRate(navigationSolver,10,30,TimeUnit.SECONDS);
+    }
+
+    private void initLogToPc(){
+        logToPc = new LogToPc(valuesStore,comAndroidToPc);
+        logToPcFuture = executor.scheduleAtFixedRate(logToPc,0,UPDATE_TIME_LOG_TO_PC,TimeUnit.MILLISECONDS);
     }
 
 
@@ -127,10 +160,13 @@ public class MainTask implements Runnable{
     public void run(){
         valuesStore = new ValuesStore();
 
+        initCommunicationWithPC();
+        initCommunicationWithArduino();
+        initSensorEventReceiver();
+        initNavigationSolver();
+        initLogToPc();
 
-
-        initCommunicationToPC();
-        initCommunicationToArduino();
+        Log.d(TAG, "Initialized all");
 
         while(!Thread.currentThread().isInterrupted()){
 
@@ -156,7 +192,8 @@ public class MainTask implements Runnable{
                         s = null;
                     }
                 }
-                initCommunicationToPC();
+                initCommunicationWithPC();
+                initLogToPc();
             }
 
             if(comArduinoToAndroidFuture.isDone() || comAndoidToArduinoFuture.isDone()){
@@ -168,8 +205,12 @@ public class MainTask implements Runnable{
 
         }
 
+        //TODO think about stopping navigationSolver
+        //TODO stop motors no diconnect, maybe send is alive flag with read timeout. Also on arduino.
+        //TODO stop logToPC
+
         sensorManager.unregisterListener(sensorEventReceiver);
-        sensorEventReceiver.getLooper().quit();
+        //sensorEventReceiver.getLooper().quit();
         Log.d(TAG, "sensorEventReceiver unregistered and quit Looper");
     }
 

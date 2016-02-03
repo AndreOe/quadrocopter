@@ -32,7 +32,7 @@ public class ComAndoidToArduino implements Runnable{
 
         while(!Thread.currentThread().isInterrupted()){
 
-            /*
+            /* TODO change this back
             writeBuffer[0] = valuesStore.getMotorFrontLeft(); // pin4
             writeBuffer[1] = valuesStore.getMotorBackLeft(); // pin7
             writeBuffer[2] = valuesStore.getMotorBackRight(); // pin8

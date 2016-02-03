@@ -9,7 +9,7 @@ public class ValuesStore {
 
     private AtomicInteger battery = new AtomicInteger(); //value from 0 to 1023 TODO not mapped yet, what is 0% battery ?
 
-    //TODO check linearity
+    //TODO check battery linearity
     private AtomicInteger motorFrontLeft = new AtomicInteger(); //value from 0 to 255 that results in 0 to 100 % motor speed
     private AtomicInteger motorBackLeft = new AtomicInteger();  //value from 0 to 255 that results in 0 to 100 % motor speed
     private AtomicInteger motorBackRight = new AtomicInteger(); //value from 0 to 255 that results in 0 to 100 % motor speed
@@ -33,6 +33,10 @@ public class ValuesStore {
     private AtomicFloat sensorMagnetometerZ = new AtomicFloat();
 
     private AtomicFloat sensorAtmosphericPressure = new AtomicFloat();
+
+    private AtomicFloat roll = new AtomicFloat();
+    private AtomicFloat pitch = new AtomicFloat();
+    private AtomicFloat yaw = new AtomicFloat();
 
 
 
@@ -115,13 +119,12 @@ public class ValuesStore {
     }
 
 
+    //Sensors
     public float getSensorGyroscopeX() {return sensorGyroscopeX.get();}
 
     public void setSensorGyroscopeX(float newValue){sensorGyroscopeX.set(newValue);}
 
-    public float getSensorGyroscopeY() {
-        return sensorGyroscopeY.get();
-    }
+    public float getSensorGyroscopeY() {return sensorGyroscopeY.get();    }
 
     public void setSensorGyroscopeY(float newValue) {sensorGyroscopeY.set(newValue);}
 
@@ -153,9 +156,7 @@ public class ValuesStore {
 
     public void setSensorMagnetometerX(float newValue) {sensorMagnetometerX.set(newValue);}
 
-    public float getSensorMagnetometerY() {
-        return sensorMagnetometerY.get();
-    }
+    public float getSensorMagnetometerY() {return sensorMagnetometerY.get(); }
 
     public void setSensorMagnetometerY(float newValue) {sensorMagnetometerY.set(newValue);}
 
@@ -165,9 +166,21 @@ public class ValuesStore {
 
     public void setSensorMagnetometerZ(float newValue) {sensorMagnetometerZ.set(newValue);}
 
-    public float getSensorAtmosphericPressure() {
-        return sensorAtmosphericPressure.get();
-    }
+    public float getSensorAtmosphericPressure() {return sensorAtmosphericPressure.get(); }
 
     public void setSensorAtmosphericPressure(float newValue) {sensorAtmosphericPressure.set(newValue);}
+
+
+    //Orientation
+    public float getRoll() {return roll.get(); }
+
+    public void setRoll(float newValue) {roll.set(newValue);}
+
+    public float getPitch() {return pitch.get(); }
+
+    public void setPitch(float newValue) {pitch.set(newValue);}
+
+    public float getYaw() {return yaw.get(); }
+
+    public void setYaw(float newValue) {yaw.set(newValue);}
 }

@@ -40,6 +40,7 @@ public class ComAndroidToPc implements Runnable{
                 GroundStationMessage message = queue.take();
                 outputStream.writeObject(message);
                 outputStream.flush();
+                //Log.d(TAG, "sent mesage To pc");
             }catch (IOException e) {
                 Log.d(TAG, "ERROR: IO in run loop");
                 break;
