@@ -3,28 +3,21 @@
     xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent"
     android:layout_height="match_parent" tools:context=".MainActivity">
 
-    <ToggleButton
-        android:text="@string/ToggleButton"
-        android:id="@+id/toggleButtonLED"
-        android:layout_width="200dp"
-        android:layout_height="150dp"
-        android:layout_centerVertical="true"
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="startService"
+        android:id="@+id/startButton"
+        android:layout_alignParentTop="true"
         android:layout_centerHorizontal="true"
-        android:textSize="50sp"
-        android:onClick="blinkLED" />
+        android:layout_marginTop="75dp" />
 
-    <TextView
-        android:id="@+id/connectionStatus"
+    <Button
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/toggleButtonLED"
-        android:layout_alignLeft="@+id/toggleButtonLED" />
-
-    <TextView
-        android:id="@+id/textView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_below="@+id/toggleButtonLED"
-        android:layout_alignRight="@+id/toggleButtonLED" />
-
+        android:text="stopService"
+        android:id="@+id/stopButton"
+        android:layout_centerVertical="true"
+        android:layout_centerHorizontal="true" />
 </RelativeLayout>

@@ -45,7 +45,7 @@ public class MainTask implements Runnable{
 
     private final int UPDATE_TIME_TO_ARDUINO = 10; //Milliseconds
     private final int UPDATE_TIME_NAVIGATION_SOLVER = 10; //Milliseconds
-    private final int UPDATE_TIME_LOG_TO_PC = 1000; //Milliseconds
+    private final int UPDATE_TIME_LOG_TO_PC = 100; //Milliseconds
 
     private final double MILLISECONDS_TO_SECONDS = 1.0/1000.0;
 

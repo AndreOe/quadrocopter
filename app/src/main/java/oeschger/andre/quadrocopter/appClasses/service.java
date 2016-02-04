@@ -160,7 +160,7 @@ public class service extends Service
         wakeLock.release();
         this.stopForeground(true);
         unregisterReceiver(mUsbReceiver);
-        Toast.makeText(this, "My Service Stopped", Toast.LENGTH_LONG).show();
+        //Toast.makeText(this, "My Service Stopped", Toast.LENGTH_LONG).show();
         Log.d(TAG, "onDestroy");
         super.onDestroy();
     }
