@@ -1,7 +1,5 @@
 package oeschger.andre.quadrocopter.communications.messages;
 
-import java.io.Serializable;
-
 import oeschger.andre.quadrocopter.util.ValuesStore;
 
 /**
@@ -9,30 +7,30 @@ import oeschger.andre.quadrocopter.util.ValuesStore;
  */
 public class LogMessage implements GroundStationMessage{
 
-    private short battery;
+    private final short battery;
 
-    private byte motorFrontLeft;
-    private byte motorBackLeft;
-    private byte motorBackRight;
-    private byte motorFrontRight;
+    private final byte motorFrontLeft;
+    private final byte motorBackLeft;
+    private final byte motorBackRight;
+    private final byte motorFrontRight;
 
-    private float sensorGyroscopeX;
-    private float sensorGyroscopeY;
-    private float sensorGyroscopeZ;
+    private final float sensorGyroscopeX;
+    private final float sensorGyroscopeY;
+    private final float sensorGyroscopeZ;
 
-    private float sensorAccelerometerX;
-    private float sensorAccelerometerY;
-    private float sensorAccelerometerZ;
+    private final float sensorAccelerometerX;
+    private final float sensorAccelerometerY;
+    private final float sensorAccelerometerZ;
 
-    private float sensorMagnetometerX;
-    private float sensorMagnetometerY;
-    private float sensorMagnetometerZ;
+    private final float sensorMagnetometerX;
+    private final float sensorMagnetometerY;
+    private final float sensorMagnetometerZ;
 
-    private float sensorAtmosphericPressure;
+    private final float sensorAtmosphericPressure;
 
-    private float roll;
-    private float pitch;
-    private float yaw;
+    private final float roll;
+    private final float pitch;
+    private final float yaw;
 
 
     public LogMessage(ValuesStore valuesStore) {
@@ -65,7 +63,7 @@ public class LogMessage implements GroundStationMessage{
 
     @Override
     public int getMessageType() {
-        return GroundStationMessage.LOGMESSAGE;
+        return GroundStationMessage.LOG_MESSAGE;
     }
 
     public short getBattery(){ return battery;}

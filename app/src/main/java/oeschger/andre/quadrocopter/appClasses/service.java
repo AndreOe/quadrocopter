@@ -13,44 +13,36 @@ import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
 import android.os.PowerManager;
 import android.util.Log;
-import android.widget.Toast;
-
-import java.io.FileDescriptor;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.net.Socket;
 
 import oeschger.andre.quadrocopter.MainTask;
 
 
 /**
  * Created by andre on 28.10.15.
+ * This Service is the background service for the Quadrocopter app.
+ * It managed device ressources.
+ *
  */
 public class service extends Service
 {
-    private static final String TAG = "MyService";
+    private static final String TAG = "QuadrocopterService";
 
-    private UsbAccessory mAccessory;
     private ParcelFileDescriptor.AutoCloseInputStream fis;
     private ParcelFileDescriptor.AutoCloseOutputStream fos;
 
-    private PowerManager powerManager;
     private PowerManager.WakeLock wakeLock;
 
     private SensorManager sensorManager;
 
     private MainTask myMainTask;
 
-    private final BroadcastReceiver mUsbReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver usbAccessoryDetachedReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
 
             if (UsbManager.ACTION_USB_ACCESSORY_DETACHED.equals(action)) {
-                UsbAccessory accessory = (UsbAccessory)intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY);
+                UsbAccessory accessory = intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY);
                 if (accessory != null) {
                     stopSelf();
                 }
@@ -60,11 +52,11 @@ public class service extends Service
 
     private void startWorkerThreads(){
 
-        //TODO handle disconnect from accestion
+        //TODO handle disconnect from accessory
 
-        Log.d(TAG, "Starting Threads");
+        Log.d(TAG, "Starting worker Threads");
         myMainTask = new MainTask(fis,fos,sensorManager);
-        Log.d(TAG, "Threadstarted");
+        Log.d(TAG, "Worker threads started");
 
 
     }
@@ -89,11 +81,9 @@ public class service extends Service
         Log.d(TAG,"accessoryList created");
 
         if (accessoryList != null){
-            Log.d(TAG,"accessoryList is");
-            Log.d(TAG,accessoryList.toString());
             Log.d(TAG,"printing accessoryList");
-            for(int i = 0;i<accessoryList.length;i++){
-                Log.d(TAG,accessoryList[i].toString());
+            for(UsbAccessory a :accessoryList){
+                Log.d(TAG,a.toString());
             }
 
             Log.d(TAG,"accessories printed");
@@ -102,7 +92,7 @@ public class service extends Service
         }
 
         if(accessoryList != null && accessoryList[0] != null) {
-            Log.d(TAG,"They are not null");
+            Log.d(TAG,"accessoryList and accessoryList[0] are not null");
             ParcelFileDescriptor pfd = manager.openAccessory(accessoryList[0]);
             fos = new ParcelFileDescriptor.AutoCloseOutputStream(pfd);
             fis = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
@@ -120,7 +110,7 @@ public class service extends Service
     public void onCreate() {
 
         IntentFilter intentFilterDetach = new IntentFilter(UsbManager.ACTION_USB_ACCESSORY_DETACHED);
-        registerReceiver(mUsbReceiver,intentFilterDetach);
+        registerReceiver(usbAccessoryDetachedReceiver,intentFilterDetach);
 
         startForeground(1,new Notification.Builder(getBaseContext())
                         .setContentTitle("Quadrocopter")
@@ -134,7 +124,7 @@ public class service extends Service
 
         Log.d(TAG, "onStart");
 
-        powerManager = (PowerManager) getSystemService(POWER_SERVICE);
+        PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
         wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "QuadrocopterWakelockTag");
         wakeLock.acquire();
 
@@ -143,9 +133,11 @@ public class service extends Service
         boolean success = openAccessory();
 
         if(success){
+            Log.d(TAG, "Accessory sucessfully opened.");
             startWorkerThreads();
             return START_STICKY; // We want this service to continue running until it is explicitly stopped, so return sticky.
         }else{
+            Log.d(TAG, "Could not open accessory. Won't start worker threads and stop self.");
             stopSelf();
             return START_NOT_STICKY;
         }
@@ -159,7 +151,7 @@ public class service extends Service
 
         wakeLock.release();
         this.stopForeground(true);
-        unregisterReceiver(mUsbReceiver);
+        unregisterReceiver(usbAccessoryDetachedReceiver);
         //Toast.makeText(this, "My Service Stopped", Toast.LENGTH_LONG).show();
         Log.d(TAG, "onDestroy");
         super.onDestroy();

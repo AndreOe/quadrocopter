@@ -1,7 +1,5 @@
 package oeschger.andre.quadrocopter.communications.messages;
 
-import java.io.Serializable;
-
 /**
  * Created by andre on 09.11.15.
  */
@@ -19,6 +17,6 @@ public class BatteryStatusMessage implements GroundStationMessage{
 
     @Override
     public int getMessageType() {
-        return GroundStationMessage.BATTERYSTATUSMESSAGE;
+        return GroundStationMessage.BATTERY_STATUS_MESSAGE;
     }
 }

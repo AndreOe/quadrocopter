@@ -10,42 +10,24 @@ public class NavigationSolver implements Runnable{
 
     private static final String TAG = "NavigationSolver";
 
-    private double filterCoefficient;
-    private double dt;
+    private final double filterCoefficient;
+    private final double dt;
 
-    private ValuesStore valuesStore;
+    private final ValuesStore valuesStore;
 
-    LinAlgUtils linAlgUtils;
+    private final double[] acc;
+    private final double[] mag;
+    private final double[] gyro;
 
-    double gyroX;
-    double gyroY;
-    double gyroZ;
+    private final double[][] dcmAccMag;
+    private final double[][] dcmCompFilter;
+    private final double[][] omegaSkew;
+    private final double[][] omegaDot;
+    private final double[][] omegaSkewT;
 
-    double accX;
-    double accY;
-    double accZ;
-
-    double magX;
-    double magY;
-    double magZ;
-
-    double[] acc;
-    double[] mag;
-    double[] gyro;
-
-    double[][] dcmAccMag;
-    double[][] dcmCompFilter;
-    double[][] omegaSkew;
-    double[][] omegaDot;
-    double[][] omegaSkewT;
-
-    double[] down;
-    double[] north;
-    double[] east;
-
-    float roll;
-    float pitch;
-    float yaw;
+    private final double[] down;
+    private final double[] north;
+    private final double[] east;
 
     public NavigationSolver(ValuesStore valuesStore, double filterCoefficient, double dt){
         this.valuesStore = valuesStore;
@@ -71,33 +53,31 @@ public class NavigationSolver implements Runnable{
         acc = new double[3];
         mag = new double[3];
         gyro  = new double[3];
-        linAlgUtils = new LinAlgUtils();
-
     }
 
     private void calculateOrientation(){
 
 
 
-        gyroX = valuesStore.getSensorGyroscopeX();
+        final float gyroX = valuesStore.getSensorGyroscopeX();
         //Log.d(TAG,"gyroX"+gyroX);
-        gyroY = valuesStore.getSensorGyroscopeY();
+        final float gyroY = valuesStore.getSensorGyroscopeY();
         //Log.d(TAG,"gyroY"+gyroY);
-        gyroZ = valuesStore.getSensorGyroscopeZ();
+        final float gyroZ = valuesStore.getSensorGyroscopeZ();
         //Log.d(TAG,"gyroZ"+gyroZ);
 
-        accX = valuesStore.getSensorAccelerometerX();
+        final float accX = valuesStore.getSensorAccelerometerX();
         //Log.d(TAG,"accX"+accX);
-        accY = valuesStore.getSensorAccelerometerY();
+        final float accY = valuesStore.getSensorAccelerometerY();
         //Log.d(TAG,"accY"+accY);
-        accZ = valuesStore.getSensorAccelerometerZ();
+        final float accZ = valuesStore.getSensorAccelerometerZ();
         //Log.d(TAG,"accZ"+accZ);
 
-        magX = valuesStore.getSensorMagnetometerX();
+        final float magX = valuesStore.getSensorMagnetometerX();
         //Log.d(TAG,"magX"+magX);
-        magY = valuesStore.getSensorMagnetometerY();
+        final float magY = valuesStore.getSensorMagnetometerY();
         //Log.d(TAG,"magY"+magY);
-        magZ = valuesStore.getSensorMagnetometerZ();
+        final float magZ = valuesStore.getSensorMagnetometerZ();
         //Log.d(TAG,"magZ"+magZ);
 
 
@@ -138,17 +118,17 @@ public class NavigationSolver implements Runnable{
         north[2] = mag[2];
         //Log.d(TAG,"north[2]"+north[2]);
 
-        east = linAlgUtils.crossProduct(down,north);
+        LinAlgUtils.crossProduct(down, north, east);
         //Log.d(TAG,"east"+east);
-        north = linAlgUtils.crossProduct(east, down);
+        LinAlgUtils.crossProduct(east, down, north);
         //Log.d(TAG,"north"+north);
 
 
-        north = linAlgUtils.normalize(north);
+        LinAlgUtils.normalize(north);
         //Log.d(TAG,"north"+north);
-        east = linAlgUtils.normalize(east);
+        LinAlgUtils.normalize(east);
         //Log.d(TAG,"east"+east);
-        down = linAlgUtils.normalize(down);
+        LinAlgUtils.normalize(down);
         //Log.d(TAG,"down"+down);
 
         dcmAccMag[0][0]= north[0];
@@ -172,12 +152,12 @@ public class NavigationSolver implements Runnable{
         dcmAccMag[2][2]= down[2];
         //Log.d(TAG,"dcmAccMag[2][2]"+dcmAccMag[2][2]);
 
-        omegaSkew = linAlgUtils.crossProductSkewMatrix(gyro);
+        LinAlgUtils.crossProductSkewMatrix(gyro, omegaSkew);
         //Log.d(TAG,"omegaSkew"+omegaSkew);
 
-        omegaSkewT = linAlgUtils.transpose(omegaSkew);
+        LinAlgUtils.transpose(omegaSkew, omegaSkewT);
 
-        omegaDot = linAlgUtils.matrixMultiply(omegaSkewT, dcmCompFilter);
+        LinAlgUtils.matrixMultiply(omegaSkewT, dcmCompFilter, omegaDot);
         //Log.d(TAG,"omegaDot"+omegaDot);
 
 
@@ -203,16 +183,16 @@ public class NavigationSolver implements Runnable{
         north[2] = dcmCompFilter[2][0];
         //Log.d(TAG,"north[2]"+north[2]);
 
-        east = linAlgUtils.crossProduct(down,north);
+        LinAlgUtils.crossProduct(down, north, east);
         //Log.d(TAG,"east"+east);
-        north = linAlgUtils.crossProduct(east, down);
+        LinAlgUtils.crossProduct(east, down, north);
         //Log.d(TAG,"north "+north );
 
-        north = linAlgUtils.normalize(north);
+        LinAlgUtils.normalize(north);
         //Log.d(TAG,"north "+north );
-        east = linAlgUtils.normalize(east);
+        LinAlgUtils.normalize(east);
         //Log.d(TAG,"east"+east);
-        down = linAlgUtils.normalize(down);
+        LinAlgUtils.normalize(down);
         //Log.d(TAG,"down"+down);
 
         dcmCompFilter[0][0]= north[0];
@@ -238,9 +218,9 @@ public class NavigationSolver implements Runnable{
 
 
         //TODO maybe take calc from Grimm, Fichter
-        roll = (float) Math.atan2(dcmCompFilter[2][1],dcmCompFilter[2][2]);
-        pitch = (float) Math.atan2(-dcmCompFilter[2][0], Math.sqrt(dcmCompFilter[0][0]*dcmCompFilter[0][0]+dcmCompFilter[1][0]*dcmCompFilter[1][0]));
-        yaw = (float) Math.atan2(dcmCompFilter[1][0],dcmCompFilter[0][0]);
+        final float roll = (float) Math.atan2(dcmCompFilter[2][1],dcmCompFilter[2][2]);
+        final float pitch = (float) Math.atan2(-dcmCompFilter[2][0], Math.sqrt(dcmCompFilter[0][0]*dcmCompFilter[0][0]+dcmCompFilter[1][0]*dcmCompFilter[1][0]));
+        final float yaw = (float) Math.atan2(dcmCompFilter[1][0],dcmCompFilter[0][0]);
 
         valuesStore.setRoll(roll);
         valuesStore.setPitch(pitch);
@@ -250,10 +230,6 @@ public class NavigationSolver implements Runnable{
 
     @Override
     public void run() {
-        try{
-            calculateOrientation();
-        }catch(Exception e){
-            e.printStackTrace();
-        }
+        calculateOrientation();
     }
 }

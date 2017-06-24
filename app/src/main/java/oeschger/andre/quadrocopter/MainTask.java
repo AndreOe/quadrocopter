@@ -2,12 +2,9 @@ package oeschger.andre.quadrocopter;
 
 import android.hardware.Sensor;
 import android.hardware.SensorManager;
-import android.os.Handler;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
 
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -38,7 +35,7 @@ public class MainTask implements Runnable{
 
     // Constants
 
-    private final String serverAddress = "192.168.0.7";
+    private final String serverAddress = "192.168.2.103";
     private final int serverPort = 2500;
 
     private final int TO_PC_MESSAGE_QUEUE_SIZE = 1000;
@@ -49,11 +46,11 @@ public class MainTask implements Runnable{
 
     private final double MILLISECONDS_TO_SECONDS = 1.0/1000.0;
 
-    private final int NUMBEROFTHREADS = 7;
+    private final int NUMBER_OF_THREADS = 7;
 
     private final float ORIENTATION_FILTER_COEFFICIENT = 0.98f;
 
-    private static final String TAG = "MainTask";
+    private static final String TAG = "QuadrocopterMainTask";
 
     //-----------------------------------------------------------
     private Socket s;
@@ -67,8 +64,6 @@ public class MainTask implements Runnable{
 
     private ScheduledThreadPoolExecutor executor;
 
-    private ComAndroidToPc comAndroidToPc;
-
     private Future<?> comAndroidToPcFuture;
     private Future<?> comPcToAndroidFuture;
     private Future<?> comArduinoToAndroidFuture;
@@ -78,23 +73,16 @@ public class MainTask implements Runnable{
     private Future<?> logToPcFuture;
 
     private SensorManager sensorManager;
-    private Sensor sensorAccelerometer;
-    private Sensor sensorMagnetometer;
-    private Sensor sensorGyroscope;
-    private Sensor sensorAtmosphericPressure;
+
 
     private SensorEventReceiver sensorEventReceiver;
     //private Handler sensorEventHandler;
-
-    private NavigationSolver navigationSolver;
-
-    private LogToPc logToPc;
 
     public MainTask(ParcelFileDescriptor.AutoCloseInputStream fis, ParcelFileDescriptor.AutoCloseOutputStream fos, SensorManager sensorManager) {
         this.accessoryInputStream = fis;
         this.accessoryOutputStream = fos;
         this.sensorManager = sensorManager;
-        executor = new ScheduledThreadPoolExecutor(NUMBEROFTHREADS);
+        executor = new ScheduledThreadPoolExecutor(NUMBER_OF_THREADS);
         executor.execute(this);
     }
 
@@ -111,11 +99,12 @@ public class MainTask implements Runnable{
             Log.d(TAG, "ERROR: IO");
         }
 
-        comAndroidToPc = new ComAndroidToPc(outputStream,TO_PC_MESSAGE_QUEUE_SIZE);
+        ComAndroidToPc comAndroidToPc = new ComAndroidToPc(outputStream,TO_PC_MESSAGE_QUEUE_SIZE);
 
         comAndroidToPcFuture = executor.submit(comAndroidToPc);
         comPcToAndroidFuture = executor.submit(new ComPcToAndroid(inputStream, valuesStore));
 
+        logToPcFuture = executor.scheduleAtFixedRate(new LogToPc(valuesStore,comAndroidToPc),0,UPDATE_TIME_LOG_TO_PC,TimeUnit.MILLISECONDS);
     }
 
     private void initCommunicationWithArduino(){
@@ -131,10 +120,10 @@ public class MainTask implements Runnable{
         //sensorEventReceiverFuture = executor.submit(sensorEventReceiver);
         Log.d(TAG, "sensorEventReceiver submitted");
 
-        sensorAccelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-        sensorMagnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
-        sensorGyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
-        sensorAtmosphericPressure = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE);
+        Sensor sensorAccelerometer= sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        Sensor sensorMagnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+        Sensor sensorGyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+        Sensor sensorAtmosphericPressure = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE);
 
         Log.d(TAG, "sensors created");
         sensorManager.registerListener(sensorEventReceiver, sensorAccelerometer, SensorManager.SENSOR_DELAY_FASTEST);
@@ -145,17 +134,10 @@ public class MainTask implements Runnable{
     }
 
     private void initNavigationSolver(){
-        navigationSolver = new NavigationSolver(valuesStore,ORIENTATION_FILTER_COEFFICIENT,(float)(UPDATE_TIME_NAVIGATION_SOLVER*MILLISECONDS_TO_SECONDS));
+        NavigationSolver navigationSolver = new NavigationSolver(valuesStore,ORIENTATION_FILTER_COEFFICIENT,(float)(UPDATE_TIME_NAVIGATION_SOLVER*MILLISECONDS_TO_SECONDS));
         navigationSolverFuture = executor.scheduleAtFixedRate(navigationSolver,10000,UPDATE_TIME_NAVIGATION_SOLVER,TimeUnit.MILLISECONDS);
         //navigationSolverFuture = executor.scheduleAtFixedRate(navigationSolver,10,30,TimeUnit.SECONDS);
     }
-
-    private void initLogToPc(){
-        logToPc = new LogToPc(valuesStore,comAndroidToPc);
-        logToPcFuture = executor.scheduleAtFixedRate(logToPc,0,UPDATE_TIME_LOG_TO_PC,TimeUnit.MILLISECONDS);
-    }
-
-
 
     @Override
     public void run(){
@@ -165,9 +147,8 @@ public class MainTask implements Runnable{
         initCommunicationWithArduino();
         initSensorEventReceiver();
         initNavigationSolver();
-        initLogToPc();
 
-        Log.d(TAG, "Initialized all");
+        Log.d(TAG, "Initialized all worker threads.");
 
         while(!Thread.currentThread().isInterrupted()){
 
@@ -195,7 +176,6 @@ public class MainTask implements Runnable{
                     }
                 }
                 initCommunicationWithPC();
-                initLogToPc();
             }
 
             if(comArduinoToAndroidFuture.isDone() || comAndoidToArduinoFuture.isDone()){

@@ -13,8 +13,8 @@ public class LogToPc implements Runnable{
 
     private static final String TAG = "LogToPc";
 
-    private ValuesStore valuesStore;
-    private ComAndroidToPc comAndroidToPc;
+    private final ValuesStore valuesStore;
+    private final ComAndroidToPc comAndroidToPc;
 
     public LogToPc(ValuesStore valuesStore,ComAndroidToPc comAndroidToPc){
         this.valuesStore = valuesStore;

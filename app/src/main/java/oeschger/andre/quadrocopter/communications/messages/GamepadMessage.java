@@ -1,16 +1,14 @@
 package oeschger.andre.quadrocopter.communications.messages;
 
-import java.io.Serializable;
-
 /**
  * Created by andre on 04.11.15.
  */
 public class GamepadMessage implements GroundStationMessage{
 
-    public static final String GAMEPADLEFTXAXIS = "x";
-    public static final String GAMEPADLEFTYAXIS = "y";
-    public static final String GAMEPADRIGHTXAXIS = "rx";
-    public static final String GAMEPADRIGHTYAXIS = "ry";
+    public static final String GAMEPAD_LEFT_X_AXIS = "x";
+    public static final String GAMEPAD_LEFT_Y_AXIS = "y";
+    public static final String GAMEPAD_RIGHT_X_AXIS = "rx";
+    public static final String GAMEPAD_RIGHT_Y_AXIS = "ry";
 
     private String buttonOrAxisName;
     private float value;
@@ -29,6 +27,6 @@ public class GamepadMessage implements GroundStationMessage{
 
     @Override
     public int getMessageType() {
-        return GAMEPADMESSAGE;
+        return GAMEPAD_MESSAGE;
     }
 }

@@ -7,11 +7,10 @@ import java.io.Serializable;
  */
 public interface GroundStationMessage extends Serializable{
 
-    public final int GAMEPADMESSAGE = 1;
-    public final int CLOSECONNECTIONMESSAGE = 2;
-    public final int BATTERYSTATUSMESSAGE = 3;
-    public final int LOGMESSAGE = 4;
+    public final int GAMEPAD_MESSAGE = 1;
+    public final int CLOSE_CONNECTION_MESSAGE = 2;
+    public final int BATTERY_STATUS_MESSAGE = 3;
+    public final int LOG_MESSAGE = 4;
 
     public int getMessageType();
-
 }

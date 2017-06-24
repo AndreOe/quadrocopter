@@ -16,8 +16,8 @@ public class ComPcToAndroid implements Runnable{
 
     private static final String TAG = "ComPcToAndroid";
 
-    private ObjectInputStream inputStream;
-    private ValuesStore valuesStore;
+    private final ObjectInputStream inputStream;
+    private final ValuesStore valuesStore;
 
     public ComPcToAndroid(ObjectInputStream inputStream, ValuesStore valuesStore) {
         this.inputStream = inputStream;
@@ -37,10 +37,10 @@ public class ComPcToAndroid implements Runnable{
                 GroundStationMessage message = (GroundStationMessage) inputStream.readObject();
 
                 switch (message.getMessageType()){
-                    case GroundStationMessage.GAMEPADMESSAGE:
+                    case GroundStationMessage.GAMEPAD_MESSAGE:
                         handleGamepadMessage((GamepadMessage)message);
                         break;
-                    case GroundStationMessage.CLOSECONNECTIONMESSAGE:
+                    case GroundStationMessage.CLOSE_CONNECTION_MESSAGE:
                         handleCloseConnectionMessage();
                         break;
                     default:
@@ -70,19 +70,19 @@ public class ComPcToAndroid implements Runnable{
     private void handleGamepadMessage(GamepadMessage message){
 
         switch (message.getButtonOrAxisName()){
-            case GamepadMessage.GAMEPADLEFTXAXIS:
+            case GamepadMessage.GAMEPAD_LEFT_X_AXIS:
                 valuesStore.setGamePadLeftXaxis(message.getValue());
                 break;
 
-            case GamepadMessage.GAMEPADLEFTYAXIS:
+            case GamepadMessage.GAMEPAD_LEFT_Y_AXIS:
                 valuesStore.setGamePadLeftYaxis(message.getValue());
                 break;
 
-            case GamepadMessage.GAMEPADRIGHTXAXIS:
+            case GamepadMessage.GAMEPAD_RIGHT_X_AXIS:
                 valuesStore.setGamePadRightXaxis(message.getValue());
                 break;
 
-            case GamepadMessage.GAMEPADRIGHTYAXIS:
+            case GamepadMessage.GAMEPAD_RIGHT_Y_AXIS:
                 valuesStore.setGamePadRightYaxis(message.getValue());
                 break;
 
