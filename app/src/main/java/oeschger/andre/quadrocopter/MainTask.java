@@ -35,7 +35,7 @@ public class MainTask implements Runnable{
 
     // Constants
 
-    private final String serverAddress = "192.168.2.103";
+    private final String serverAddress = "192.168.2.106";
     private final int serverPort = 2500;
 
     private final int TO_PC_MESSAGE_QUEUE_SIZE = 1000;

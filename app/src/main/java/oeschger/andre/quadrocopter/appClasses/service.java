@@ -14,6 +14,8 @@ import android.os.ParcelFileDescriptor;
 import android.os.PowerManager;
 import android.util.Log;
 
+import java.io.IOException;
+
 import oeschger.andre.quadrocopter.MainTask;
 
 
@@ -29,6 +31,7 @@ public class service extends Service
 
     private ParcelFileDescriptor.AutoCloseInputStream fis;
     private ParcelFileDescriptor.AutoCloseOutputStream fos;
+    private ParcelFileDescriptor pfd;
 
     private PowerManager.WakeLock wakeLock;
 
@@ -93,7 +96,7 @@ public class service extends Service
 
         if(accessoryList != null && accessoryList[0] != null) {
             Log.d(TAG,"accessoryList and accessoryList[0] are not null");
-            ParcelFileDescriptor pfd = manager.openAccessory(accessoryList[0]);
+            pfd = manager.openAccessory(accessoryList[0]);
             fos = new ParcelFileDescriptor.AutoCloseOutputStream(pfd);
             fis = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
             connected = true;
@@ -148,6 +151,12 @@ public class service extends Service
     public void onDestroy() {
 
         stopWorkerThreads();
+
+        try {
+            pfd.close();
+        } catch (IOException e) {
+            Log.d(TAG, "Could not close Accessory ParcableFileDescriptor", e);
+        }
 
         wakeLock.release();
         this.stopForeground(true);
