@@ -29,80 +29,9 @@ public class service extends Service
 {
     private static final String TAG = "QuadrocopterService";
 
-    private ParcelFileDescriptor.AutoCloseInputStream fis;
-    private ParcelFileDescriptor.AutoCloseOutputStream fos;
-    private ParcelFileDescriptor pfd;
-
     private PowerManager.WakeLock wakeLock;
 
-    private SensorManager sensorManager;
-
     private MainTask myMainTask;
-
-    private final BroadcastReceiver usbAccessoryDetachedReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-
-            if (UsbManager.ACTION_USB_ACCESSORY_DETACHED.equals(action)) {
-                UsbAccessory accessory = intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY);
-                if (accessory != null) {
-                    stopSelf();
-                }
-            }
-        }
-    };
-
-    private void startWorkerThreads(){
-
-        //TODO handle disconnect from accessory
-
-        Log.d(TAG, "Starting worker Threads");
-        myMainTask = new MainTask(fis,fos,sensorManager);
-        Log.d(TAG, "Worker threads started");
-
-
-    }
-
-    private void stopWorkerThreads(){
-        // Cancel any thread currently running a connection
-        if(myMainTask!=null){
-            myMainTask.shutdownNow();
-        }
-    }
-
-
-    private boolean openAccessory() {
-
-        boolean connected = false;
-
-        Log.d(TAG, "openAccessory");
-
-        UsbManager manager = (UsbManager) getSystemService(Context.USB_SERVICE);
-        UsbAccessory[] accessoryList = manager.getAccessoryList();
-
-        Log.d(TAG,"accessoryList created");
-
-        if (accessoryList != null){
-            Log.d(TAG,"printing accessoryList");
-            for(UsbAccessory a :accessoryList){
-                Log.d(TAG,a.toString());
-            }
-
-            Log.d(TAG,"accessories printed");
-        } else{
-            Log.d(TAG,"accessoryList is null");
-        }
-
-        if(accessoryList != null && accessoryList[0] != null) {
-            Log.d(TAG,"accessoryList and accessoryList[0] are not null");
-            pfd = manager.openAccessory(accessoryList[0]);
-            fos = new ParcelFileDescriptor.AutoCloseOutputStream(pfd);
-            fis = new ParcelFileDescriptor.AutoCloseInputStream(pfd);
-            connected = true;
-        }
-        return connected;
-    }
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -112,12 +41,9 @@ public class service extends Service
     @Override
     public void onCreate() {
 
-        IntentFilter intentFilterDetach = new IntentFilter(UsbManager.ACTION_USB_ACCESSORY_DETACHED);
-        registerReceiver(usbAccessoryDetachedReceiver,intentFilterDetach);
-
         startForeground(1,new Notification.Builder(getBaseContext())
                         .setContentTitle("Quadrocopter")
-                        .setContentText("The Service is runnig")
+                        .setContentText("The Quadrocopter Service is runnig")
                         .build()
         );
     }
@@ -131,37 +57,26 @@ public class service extends Service
         wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "QuadrocopterWakelockTag");
         wakeLock.acquire();
 
-        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        SensorManager sensorManager;sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        UsbManager usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
 
-        boolean success = openAccessory();
+        Log.d(TAG, "Starting worker Threads");
+        myMainTask = new MainTask(usbManager, sensorManager);
+        Log.d(TAG, "Worker threads started");
 
-        if(success){
-            Log.d(TAG, "Accessory sucessfully opened.");
-            startWorkerThreads();
-            return START_STICKY; // We want this service to continue running until it is explicitly stopped, so return sticky.
-        }else{
-            Log.d(TAG, "Could not open accessory. Won't start worker threads and stop self.");
-            stopSelf();
-            return START_NOT_STICKY;
-        }
+        return START_STICKY; // We want this service to continue running until it is explicitly stopped, so return sticky.
 
     }
 
     @Override
     public void onDestroy() {
 
-        stopWorkerThreads();
-
-        try {
-            pfd.close();
-        } catch (IOException e) {
-            Log.d(TAG, "Could not close Accessory ParcableFileDescriptor", e);
+        if(myMainTask!=null){
+            myMainTask.shutdownNow();
         }
 
         wakeLock.release();
         this.stopForeground(true);
-        unregisterReceiver(usbAccessoryDetachedReceiver);
-        //Toast.makeText(this, "My Service Stopped", Toast.LENGTH_LONG).show();
         Log.d(TAG, "onDestroy");
         super.onDestroy();
     }

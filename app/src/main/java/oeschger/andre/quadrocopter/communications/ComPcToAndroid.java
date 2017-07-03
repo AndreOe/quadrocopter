@@ -4,6 +4,8 @@ import android.util.Log;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.StreamCorruptedException;
+import java.net.Socket;
 
 import oeschger.andre.quadrocopter.util.ValuesStore;
 import oeschger.andre.quadrocopter.communications.messages.GamepadMessage;
@@ -16,29 +18,53 @@ public class ComPcToAndroid implements Runnable{
 
     private static final String TAG = "ComPcToAndroid";
 
-    private final ObjectInputStream inputStream;
+    private final Socket socket;
     private final ValuesStore valuesStore;
 
-    public ComPcToAndroid(ObjectInputStream inputStream, ValuesStore valuesStore) {
-        this.inputStream = inputStream;
+
+    public ComPcToAndroid(Socket socket, ValuesStore valuesStore) {
+        this.socket = socket;
         this.valuesStore = valuesStore;
+        this.finished = false;
     }
 
+    private boolean finished;
+
+    public synchronized void waitForFinished() throws InterruptedException {
+        if(!finished){
+            wait();
+        }
+    }
+
+    private synchronized void finish(){
+        finished = true;
+        notify();
+    }
 
     @Override
     public void run() {
 
         Log.d(TAG, "started");
 
-        while(!Thread.currentThread().isInterrupted()){
+        try (ObjectInputStream inputStream = new ObjectInputStream(socket.getInputStream())) {
 
-            try {
+            while (!Thread.currentThread().isInterrupted()) {
 
-                GroundStationMessage message = (GroundStationMessage) inputStream.readObject();
+                GroundStationMessage message;
 
-                switch (message.getMessageType()){
+                try {
+                    message = (GroundStationMessage) inputStream.readObject();
+                } catch (IOException e) {
+                    Log.e(TAG, "ERROR: IO in run loop", e);
+                    break;
+                } catch (ClassNotFoundException e) {
+                    Log.e(TAG, "ERROR: class not found", e);
+                    break;
+                }
+
+                switch (message.getMessageType()) {
                     case GroundStationMessage.GAMEPAD_MESSAGE:
-                        handleGamepadMessage((GamepadMessage)message);
+                        handleGamepadMessage((GamepadMessage) message);
                         break;
                     case GroundStationMessage.CLOSE_CONNECTION_MESSAGE:
                         handleCloseConnectionMessage();
@@ -47,24 +73,14 @@ public class ComPcToAndroid implements Runnable{
                         throw new IllegalArgumentException("GroundStationMessage type: " + message.getMessageType());
                 }
 
-            } catch (IOException e) {
-                Log.d(TAG, "ERROR: IO in run loop");
-                break;
-            } catch (ClassNotFoundException e) {
-                Log.d(TAG, "ERROR: class not found");
-                break;
             }
 
-        }
-
-        try {
-            inputStream.close();
         } catch (IOException e) {
-            Log.d(TAG, "ERROR: close inputStream");
+            Log.e(TAG, "Could not open input stream.", e);
         }
 
+        finish();
         Log.d(TAG, "ended");
-
     }
 
     private void handleGamepadMessage(GamepadMessage message){
@@ -87,15 +103,13 @@ public class ComPcToAndroid implements Runnable{
                 break;
 
             default:
-                Log.d(TAG, "Unused Key: "+message.getButtonOrAxisName());
+                Log.d(TAG, "Unused Key: " + message.getButtonOrAxisName());
         }
     }
 
-    private void handleCloseConnectionMessage(){
+    private void handleCloseConnectionMessage() {
+        Log.d(TAG, "Received Close Connection Message");
         Thread.currentThread().interrupt();
     }
-
-
-
 
 }

@@ -4,6 +4,7 @@ import android.util.Log;
 
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.net.Socket;
 import java.util.concurrent.ArrayBlockingQueue;
 
 import oeschger.andre.quadrocopter.communications.messages.CloseConnectionMessage;
@@ -16,13 +17,26 @@ public class ComAndroidToPc implements Runnable{
 
     private static final String TAG = "ComAndroidToPc";
 
-    private ObjectOutputStream outputStream;
+    private Socket socket;
     private ArrayBlockingQueue<GroundStationMessage> queue;
 
 
-    public ComAndroidToPc(ObjectOutputStream outputStream, int queueSize) {
-        this.outputStream = outputStream;
-        queue = new ArrayBlockingQueue<GroundStationMessage>(queueSize);
+    public ComAndroidToPc(Socket socket, int queueSize) {
+        this.socket = socket;
+        queue = new ArrayBlockingQueue<>(queueSize);
+    }
+
+    private boolean finished;
+
+    public synchronized void waitForFinished() throws InterruptedException {
+        if(!finished){
+            wait();
+        }
+    }
+
+    private synchronized void finish(){
+        finished = true;
+        notify();
     }
 
     public void sentToPc(GroundStationMessage message){
@@ -34,30 +48,38 @@ public class ComAndroidToPc implements Runnable{
 
         Log.d(TAG, "started");
 
-        while(!Thread.currentThread().isInterrupted()){
+        try (ObjectOutputStream outputStream = new ObjectOutputStream(socket.getOutputStream())) {
 
-            try {
-                GroundStationMessage message = queue.take();
-                outputStream.writeObject(message);
-                outputStream.flush();
-                //Log.d(TAG, "sent mesage To pc");
-            }catch (IOException e) {
-                Log.d(TAG, "ERROR: IO in run loop");
-                break;
-            }catch (InterruptedException e) {
-                Log.d(TAG, "ERROR: interrupted");
-                break;
+            while (!Thread.currentThread().isInterrupted()) {
+
+                try {
+                    GroundStationMessage message = queue.take();
+                    outputStream.writeObject(message);
+                    outputStream.flush();
+                    //Log.d(TAG, "sent mesage To pc");
+                } catch (IOException e) {
+                    Log.e(TAG, "Could not send onject.", e);
+                    break;
+                } catch (InterruptedException e) {
+
+                    try {
+                        outputStream.writeObject(new CloseConnectionMessage());
+                        outputStream.flush();
+
+                    } catch (IOException e1) {
+                        Log.e(TAG, "Could not send close message.", e1);
+                    }
+
+                    Log.d(TAG, "ComAndroidToPc was interrupted.");
+                    break;
+                }
             }
-        }
 
-        try {
-            outputStream.writeObject(new CloseConnectionMessage());
-            outputStream.flush();
-            outputStream.close();
         } catch (IOException e) {
-            Log.d(TAG, "ERROR: IO send close message");
+            Log.e(TAG, "Could not open output stream.", e);
         }
 
+        finish();
         Log.d(TAG, "ended");
     }
 }
